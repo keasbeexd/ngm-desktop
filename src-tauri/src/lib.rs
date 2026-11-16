@@ -30,6 +30,8 @@ struct App {
     addon: Mutex<AddonState>,
     /// NGM Desktop's own updates: how the last check went
     app_update: Mutex<Option<String>>,
+    /// a newer NGM Desktop found by the last check (not installed)
+    app_latest: Mutex<Option<String>>,
     /// the guilds this account is linked in, and when NGM Peon said so
     guilds: Mutex<Option<(std::time::Instant, Vec<peon::Guild>)>>,
 }
@@ -95,6 +97,8 @@ struct AppView {
     version: &'static str,
     auto: bool,
     message: Option<String>,
+    /// a newer version is out (shows "Update NGM Desktop")
+    latest: Option<String>,
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
@@ -102,6 +106,7 @@ async fn view(app: &App, error: Option<String>) -> View {
     // struct below while another field locks the same thing again would hang
     let auto_app = app.settings.lock().unwrap().auto_app;
     let app_message = app.app_update.lock().unwrap().clone();
+    let app_latest = app.app_latest.lock().unwrap().clone();
     let wow = app.settings.lock().unwrap().wow.clone();
     let accounts = wow.as_deref().map(wow::accounts).unwrap_or_default();
     let mut v = View {
@@ -117,6 +122,7 @@ async fn view(app: &App, error: Option<String>) -> View {
             version: env!("CARGO_PKG_VERSION"),
             auto: auto_app,
             message: app_message,
+            latest: app_latest,
         },
         addon: {
             let a = app.addon.lock().unwrap().clone();
@@ -309,6 +315,7 @@ async fn update_self(handle: &AppHandle, now: bool) {
         Ok(u) => u.check().await,
         Err(e) => return say(Some(format!("Couldn't check for updates: {e}"))),
     };
+    *app.app_latest.lock().unwrap() = None;
     match checked {
         Ok(None) => say(None),
         Ok(Some(update)) if now || auto => {
@@ -319,7 +326,10 @@ async fn update_self(handle: &AppHandle, now: bool) {
                 Err(e) => say(Some(format!("Couldn't install NGM Desktop {}: {e}", update.version))),
             }
         }
-        Ok(Some(update)) => say(Some(format!("NGM Desktop {} is out.", update.version))),
+        Ok(Some(update)) => {
+            *app.app_latest.lock().unwrap() = Some(update.version.clone());
+            say(None)
+        }
         Err(_) => say(Some("Couldn't reach GitHub to check for NGM Desktop updates.".into())),
     }
     let _ = handle.emit("synced", ());
@@ -338,9 +348,18 @@ async fn set_auto_app(handle: AppHandle, app: State<'_, App>, on: bool) -> Resul
     Ok(view(&app, None).await)
 }
 
+/// "Update NGM Desktop": install the newer version now.
 #[tauri::command]
 async fn check_app(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
     update_self(&handle, true).await;
+    Ok(view(&app, None).await)
+}
+
+/// "Check for updates": both, installing only what the player ticked.
+#[tauri::command]
+async fn check_updates(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
+    update_addon(&handle, false).await;
+    update_self(&handle, false).await;
     Ok(view(&app, None).await)
 }
 
@@ -459,6 +478,7 @@ pub fn run() {
                 addon: Mutex::new(AddonState::default()),
                 guilds: Mutex::new(None),
                 app_update: Mutex::new(None),
+                app_latest: Mutex::new(None),
             });
             if let Some(p) = wow {
                 if let Err(e) = sync::start(app.handle(), &p) {
@@ -530,6 +550,7 @@ pub fn run() {
             check_addon,
             set_auto_app,
             check_app,
+            check_updates,
             open_link
         ])
         .run(tauri::generate_context!())
