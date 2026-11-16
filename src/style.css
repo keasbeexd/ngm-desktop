@@ -44,4 +44,10 @@ label.check input { width: auto; accent-color: var(--gilt); }
 footer a { color: var(--bone); }
 footer nav { margin-bottom: 4px; }
 footer p { margin: 0; }
+.updates { padding: 10px 0 4px; }
+.updates .checks { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.updates .check { margin: 0; font-size: .85rem; }
+.updates .versions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .8rem; margin-top: 6px; }
+.updates .versions button { margin: 0 4px 4px 0; }
+.updates .note { margin: 6px 0 0; font-size: .85rem; }
 footer { padding: 10px 20px; font-size: .75rem; border-top: 1px solid var(--line); }

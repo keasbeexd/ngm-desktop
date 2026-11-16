@@ -34,21 +34,16 @@ function render(v) {
     }));
   }
 
+  // Updates: one line of versions, one button, a note only when there's news
   const a = v.addon;
-  $("addon-have").textContent = !a.installed
-    ? "NGM Addon isn't installed in this game folder."
-    : a.behind
-      ? `Installed: NGM Addon ${a.installed}. Newest: ${a.latest}.`
-      : `Installed: NGM Addon ${a.installed}${a.latest ? " (up to date)" : ""}.`;
+  const addonText = !a.installed ? "NGM Addon not found" : `NGM Addon ${a.installed}${a.behind ? ` (${a.latest} is out)` : ""}`;
+  $("versions").textContent = `${addonText} · NGM Desktop ${v.app.version}`;
   $("auto-addon").checked = a.auto;
-  $("addon-msg").hidden = !a.message;
-  $("addon-msg").textContent = a.message ?? "";
-  $("addon-check").textContent = a.behind ? "Update now" : "Check now";
-
-  $("app-have").textContent = `Version ${v.app.version}.`;
   $("auto-app").checked = v.app.auto;
-  $("app-msg").hidden = !v.app.message;
-  $("app-msg").textContent = v.app.message ?? "";
+  const notes = [a.message, v.app.message].filter(Boolean);
+  $("update-msg").hidden = notes.length === 0;
+  $("update-msg").textContent = notes.join(" ");
+  $("check-updates").textContent = a.behind ? "Update NGM Addon" : "Check for updates";
 
   $("connect-box").hidden = v.connected;
   $("connected-box").hidden = !v.connected;
@@ -82,9 +77,11 @@ $("choose").addEventListener("click", (e) => run("choose_wow", {}, e.target));
 $("disconnect").addEventListener("click", (e) => run("disconnect", {}, e.target));
 $("send").addEventListener("click", (e) => run("sync_now", {}, e.target));
 $("auto-addon").addEventListener("change", (e) => run("set_auto_addon", { on: e.target.checked }));
-$("addon-check").addEventListener("click", (e) => run("check_addon", {}, e.target));
 $("auto-app").addEventListener("change", (e) => run("set_auto_app", { on: e.target.checked }));
-$("app-check").addEventListener("click", (e) => run("check_app", {}, e.target));
+$("check-updates").addEventListener("click", async (e) => {
+  await run("check_addon", {}, e.target);
+  await run("check_app", {}, e.target);
+});
 document.querySelectorAll("[data-link]").forEach((l) => l.addEventListener("click", (e) => {
   e.preventDefault();
   invoke("open_link", { which: l.dataset.link });
