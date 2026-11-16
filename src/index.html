@@ -46,7 +46,13 @@
 
   <section>
     <h2><span class="n">3</span>Syncing</h2>
-    <p class="dim">Coming next: when you log out of WoW or <code>/reload</code>, this app sends your changes to NGM Peon and brings its news back for the addon. It only reads NGM's saved data and writes its own small addon folder.</p>
+    <p id="helper-new" class="note" hidden>The app added its small addon to WoW. <b>Restart WoW once</b> (not just <code>/reload</code>) so the game loads it; NGM 3.0.8 or newer is needed.</p>
+    <p>When you log out of WoW or <code>/reload</code>, your changes go to NGM Peon by themselves.</p>
+    <p id="last" class="dim">Nothing sent yet.</p>
+    <ul id="last-lines"></ul>
+    <p id="note" class="note" hidden></p>
+    <div class="buttons"><button id="send" class="alt small">Send now</button></div>
+    <p class="dim small-print">It only reads NGM's saved data and writes its own small addon folder. Bringing NGM Peon's news back is coming next.</p>
   </section>
 </main>
 
