@@ -28,6 +28,8 @@ serde_json = "=1.0.154"
 notify = "=8.2.1"
 tauri-plugin-notification = "=2.8.0"
 tauri-plugin-opener = "=2.7.2"
+# NGM Desktop's own updates: only files signed with our update key
+tauri-plugin-updater = "=2.14.1"
 # NGM updates: GitHub release zips, checked against their SHA-256
 zip = { version = "=9.2.2", default-features = false, features = ["deflate"] }
 sha2 = "=0.11.1"

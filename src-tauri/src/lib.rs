@@ -28,6 +28,8 @@ struct App {
     news: news::News,
     /// NGM Addon's own updates: what's installed, the newest, and how the last try went
     addon: Mutex<AddonState>,
+    /// NGM Desktop's own updates: how the last check went
+    app_update: Mutex<Option<String>>,
     /// the guilds this account is linked in, and when NGM Peon said so
     guilds: Mutex<Option<(std::time::Instant, Vec<peon::Guild>)>>,
 }
@@ -84,6 +86,15 @@ struct View {
     /// a passing remark (not an error)
     note: Option<String>,
     addon: AddonView,
+    /// NGM Desktop itself: its version, whether it updates itself, the last word
+    app: AppView,
+}
+
+#[derive(Serialize)]
+struct AppView {
+    version: &'static str,
+    auto: bool,
+    message: Option<String>,
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
@@ -98,6 +109,11 @@ async fn view(app: &App, error: Option<String>) -> View {
         last: app.sync.last.lock().unwrap().clone(),
         helper_new: *app.sync.helper_new.lock().unwrap(),
         note: None,
+        app: AppView {
+            version: env!("CARGO_PKG_VERSION"),
+            auto: app.settings.lock().unwrap().auto_app,
+            message: app.app_update.lock().unwrap().clone(),
+        },
         addon: {
             let a = app.addon.lock().unwrap().clone();
             let s = app.settings.lock().unwrap();
@@ -273,6 +289,57 @@ async fn update_addon(handle: &AppHandle, now: bool) {
     let _ = handle.emit("synced", ());
 }
 
+/// NGM Desktop's own update: only files signed with our update key (the
+/// updater checks the signature against the public key in tauri.conf.json),
+/// from the newest published release on GitHub. Installs and restarts when
+/// `now` or the box is ticked. Only in installed builds, never `npm run dev`.
+async fn update_self(handle: &AppHandle, now: bool) {
+    use tauri_plugin_updater::UpdaterExt;
+    let app = handle.state::<App>();
+    let say = |m: Option<String>| *app.app_update.lock().unwrap() = m;
+    if cfg!(debug_assertions) {
+        return say(Some("Updates itself only once installed from a release.".into()));
+    }
+    let auto = app.settings.lock().unwrap().auto_app;
+    let checked = match handle.updater() {
+        Ok(u) => u.check().await,
+        Err(e) => return say(Some(format!("Couldn't check for updates: {e}"))),
+    };
+    match checked {
+        Ok(None) => say(None),
+        Ok(Some(update)) if now || auto => {
+            say(Some(format!("Installing NGM Desktop {}...", update.version)));
+            let _ = handle.emit("synced", ());
+            match update.download_and_install(|_, _| {}, || {}).await {
+                Ok(()) => handle.restart(),
+                Err(e) => say(Some(format!("Couldn't install NGM Desktop {}: {e}", update.version))),
+            }
+        }
+        Ok(Some(update)) => say(Some(format!("NGM Desktop {} is out.", update.version))),
+        Err(_) => say(Some("Couldn't reach GitHub to check for NGM Desktop updates.".into())),
+    }
+    let _ = handle.emit("synced", ());
+}
+
+#[tauri::command]
+async fn set_auto_app(handle: AppHandle, app: State<'_, App>, on: bool) -> Result<View, String> {
+    {
+        let mut s = app.settings.lock().unwrap();
+        s.auto_app = on;
+        store::save(&app.dir, &s)?;
+    }
+    if on {
+        update_self(&handle, false).await;
+    }
+    Ok(view(&app, None).await)
+}
+
+#[tauri::command]
+async fn check_app(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
+    update_self(&handle, true).await;
+    Ok(view(&app, None).await)
+}
+
 #[tauri::command]
 async fn set_auto_addon(handle: AppHandle, app: State<'_, App>, on: bool) -> Result<View, String> {
     {
@@ -375,6 +442,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
             let settings = store::load(&dir);
@@ -386,6 +454,7 @@ pub fn run() {
                 news: news::News::default(),
                 addon: Mutex::new(AddonState::default()),
                 guilds: Mutex::new(None),
+                app_update: Mutex::new(None),
             });
             if let Some(p) = wow {
                 if let Err(e) = sync::start(app.handle(), &p) {
@@ -393,6 +462,15 @@ pub fn run() {
                 }
             }
             news::start(app.handle()); // every 10 minutes, only while WoW runs
+                                       // NGM Desktop's own update: a minute after start, then every 6 hours
+            let h = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(60));
+                loop {
+                    tauri::async_runtime::block_on(update_self(&h, false));
+                    std::thread::sleep(std::time::Duration::from_secs(6 * 60 * 60));
+                }
+            });
 
             let open = MenuItem::with_id(app, "open", "Open NGM Desktop", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -446,6 +524,8 @@ pub fn run() {
             disconnect,
             set_auto_addon,
             check_addon,
+            set_auto_app,
+            check_app,
             open_link
         ])
         .run(tauri::generate_context!())

@@ -44,7 +44,15 @@ NGM Addon. `src/` is its window (plain HTML, CSS and JavaScript).
   other addons or WoW's settings.
 
 The code is public so you can check all of that yourself, and releases are
-built from it in GitHub Actions with build attestations.
+built from it in GitHub Actions with build attestations. To check a
+download was built here, from this code:
+
+```
+gh attestation verify <the file you downloaded> --repo keasbeexd/ngm-desktop
+```
+
+NGM Desktop updates itself (unless you untick it) from the published
+releases here, and only installs files signed with its own update key.
 
 ## License
 

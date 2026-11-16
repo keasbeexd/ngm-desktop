@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 const SERVICE: &str = "app.ngmpeon.desktop";
 const ACCOUNT: &str = "device-key";
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
     /// WoW: Forever's `_forever_` folder
     pub wow: Option<PathBuf>,
@@ -22,6 +23,25 @@ pub struct Settings {
     /// keep NGM Addon up to date (the player's choice; off unless ticked)
     #[serde(default)]
     pub auto_addon: bool,
+    /// keep NGM Desktop itself up to date (on unless the player unticks it)
+    #[serde(default = "yes")]
+    pub auto_app: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            wow: None,
+            sent: vec![],
+            seen_events: Default::default(),
+            auto_addon: false,
+            auto_app: true,
+        }
+    }
 }
 
 pub fn load(dir: &Path) -> Settings {

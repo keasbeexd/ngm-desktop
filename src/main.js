@@ -45,6 +45,11 @@ function render(v) {
   $("addon-msg").textContent = a.message ?? "";
   $("addon-check").textContent = a.behind ? "Update now" : "Check now";
 
+  $("app-have").textContent = `Version ${v.app.version}.`;
+  $("auto-app").checked = v.app.auto;
+  $("app-msg").hidden = !v.app.message;
+  $("app-msg").textContent = v.app.message ?? "";
+
   $("connect-box").hidden = v.connected;
   $("connected-box").hidden = !v.connected;
   const list = $("guilds");
@@ -78,6 +83,8 @@ $("disconnect").addEventListener("click", (e) => run("disconnect", {}, e.target)
 $("send").addEventListener("click", (e) => run("sync_now", {}, e.target));
 $("auto-addon").addEventListener("change", (e) => run("set_auto_addon", { on: e.target.checked }));
 $("addon-check").addEventListener("click", (e) => run("check_addon", {}, e.target));
+$("auto-app").addEventListener("change", (e) => run("set_auto_app", { on: e.target.checked }));
+$("app-check").addEventListener("click", (e) => run("check_app", {}, e.target));
 document.querySelectorAll("[data-link]").forEach((l) => l.addEventListener("click", (e) => {
   e.preventDefault();
   invoke("open_link", { which: l.dataset.link });
