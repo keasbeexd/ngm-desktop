@@ -1,6 +1,6 @@
 //! NGM Desktop. Lives in the tray; its window finds WoW: Forever and
-//! connects this computer to NGM Peon. When the game saves NGM's data, it
-//! sends NGM Peon the update code NGM left (sync.rs). Bringing NGM Peon's
+//! connects this computer to NGM Peon. When the game saves NGM Addon's data, it
+//! sends NGM Peon the update code NGM Addon left (sync.rs). Bringing NGM Peon's
 //! data back comes in milestone 4.
 
 mod addon;
@@ -26,7 +26,7 @@ struct App {
     dir: PathBuf,
     sync: sync::Sync,
     news: news::News,
-    /// NGM's own updates: what's installed, the newest, and how the last try went
+    /// NGM Addon's own updates: what's installed, the newest, and how the last try went
     addon: Mutex<AddonState>,
     /// the guilds this account is linked in, and when NGM Peon said so
     guilds: Mutex<Option<(std::time::Instant, Vec<peon::Guild>)>>,
@@ -57,7 +57,7 @@ struct AddonState {
     message: Option<String>,
 }
 
-/// What the window shows about NGM itself.
+/// What the window shows about NGM Addon.
 #[derive(Serialize)]
 struct AddonView {
     installed: Option<String>,
@@ -72,7 +72,7 @@ struct AddonView {
 #[derive(Serialize)]
 struct View {
     wow: Option<String>,
-    /// WoW accounts with NGM's data in that folder
+    /// WoW accounts with NGM Addon's data in that folder
     accounts: Vec<String>,
     connected: bool,
     guilds: Vec<peon::Guild>,
@@ -209,21 +209,21 @@ async fn connect(handle: AppHandle, app: State<'_, App>, code: String) -> Result
     }
 }
 
-/// Sends whatever NGM left that wasn't sent yet.
+/// Sends whatever NGM Addon left that wasn't sent yet.
 #[tauri::command]
 async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
     let sent = sync::run(&handle).await;
     let mut v = view(&app, None).await;
     if !sent {
         v.note = Some(
-            "Nothing new to send. WoW saves NGM's update when you log out or /reload, so do one of those in game."
+            "Nothing new to send. WoW saves NGM Addon's update when you log out or /reload, so do one of those in game."
                 .into(),
         );
     }
     Ok(v)
 }
 
-/// Checks GitHub for a newer NGM and, when `now` or the box is ticked,
+/// Checks GitHub for a newer NGM Addon and, when `now` or the box is ticked,
 /// installs it (only while WoW is closed).
 async fn update_addon(handle: &AppHandle, now: bool) {
     let app = handle.state::<App>();
@@ -264,9 +264,9 @@ async fn update_addon(handle: &AppHandle, now: bool) {
             };
             set(
                 Some(rel.version.clone()),
-                Some(format!("Updated NGM to {}.{next}", rel.version)),
+                Some(format!("Updated NGM Addon to {}.{next}", rel.version)),
             );
-            let _ = companion::ensure(&forever); // its game version follows NGM's
+            let _ = companion::ensure(&forever); // its game version follows NGM Addon's
         }
         Err(e) => set(Some(rel.version), Some(e)),
     }

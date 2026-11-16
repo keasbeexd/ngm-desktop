@@ -37,7 +37,7 @@ pub fn game_running() -> bool {
 pub fn start(handle: &AppHandle) {
     let h = handle.clone();
     std::thread::spawn(move || {
-        let mut ticks: u32 = 5; // NGM's own update: soon after start, then hourly (6 ticks)
+        let mut ticks: u32 = 5; // NGM Addon's own update: soon after start, then hourly (6 ticks)
         loop {
             std::thread::sleep(EVERY);
             ticks += 1;
@@ -118,7 +118,7 @@ fn announce(handle: &AppHandle, app: &crate::App, guild: &str, code: &str) {
                 .notification()
                 .builder()
                 .title(format!("New {what}: {title}"))
-                .body("In WoW: Reload and Sync (or /reload) to see it in NGM's Upcoming Events.")
+                .body("In WoW: Reload and Sync (or /reload) to see it in NGM Addon's Upcoming Events.")
                 .show();
         }
     }

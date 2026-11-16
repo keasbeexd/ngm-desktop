@@ -1,5 +1,5 @@
 //! Finding WoW: Forever's folder (`World of Warcraft/_forever_`) and the
-//! WoW accounts in it that have NGM's saved data.
+//! WoW accounts in it that have NGM Addon's saved data.
 //!
 //! Only looks at folder names; never opens a file here.
 
@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const FOREVER: &str = "_forever_";
-/// NGM's saved data, per WoW account: WTF/Account/<account>/SavedVariables/<this>
+/// NGM Addon's saved data, per WoW account: WTF/Account/<account>/SavedVariables/<this>
 pub const SAVED: &str = "NootropicGuildManager.lua";
 
 /// The `_forever_` folder for a folder someone picked: `_forever_` itself,
@@ -25,7 +25,7 @@ fn is_forever(p: &Path) -> bool {
     p.file_name().map(|n| n == FOREVER).unwrap_or(false) && (p.join("WTF").is_dir() || p.join("Interface").is_dir())
 }
 
-/// WoW accounts (folder names under WTF/Account) with NGM's saved data.
+/// WoW accounts (folder names under WTF/Account) with NGM Addon's saved data.
 pub fn accounts(forever: &Path) -> Vec<String> {
     let mut out = Vec::new();
     let Ok(dir) = fs::read_dir(forever.join("WTF").join("Account")) else {
@@ -97,7 +97,7 @@ fn home() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
 }
 
-/// The first `_forever_` folder found, preferring one with NGM's data.
+/// The first `_forever_` folder found, preferring one with NGM Addon's data.
 pub fn find() -> Option<PathBuf> {
     let found: Vec<PathBuf> = candidates().iter().filter_map(|c| normalize(c)).collect();
     found

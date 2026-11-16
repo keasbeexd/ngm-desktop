@@ -1,4 +1,4 @@
-//! Keeping NGM itself up to date (only when the player ticks the box): the
+//! Keeping NGM Addon up to date (only when the player ticks the box): the
 //! newest release from GitHub (keasbeexd/nootropic-guild-manager), checked
 //! against GitHub's SHA-256 for that file, installed all at once (the old
 //! folder comes back if anything fails). WoW may be running: addons load
@@ -29,7 +29,7 @@ pub fn folder(forever: &Path) -> PathBuf {
     forever.join("Interface").join("AddOns").join(FOLDER)
 }
 
-/// The version installed (its TOC), if NGM is there.
+/// The version installed (its TOC), if NGM Addon is there.
 pub fn installed(forever: &Path) -> Option<String> {
     let toc = fs::read_to_string(folder(forever).join(format!("{FOLDER}.toc"))).ok()?;
     toc.lines()
@@ -82,9 +82,12 @@ pub async fn latest() -> Result<Release, String> {
         .header("accept", "application/vnd.github+json")
         .send()
         .await
-        .map_err(|_| "Couldn't reach GitHub to check for NGM updates.".to_string())?;
+        .map_err(|_| "Couldn't reach GitHub to check for NGM Addon updates.".to_string())?;
     if !r.status().is_success() {
-        return Err(format!("GitHub answered {} when checking for NGM updates.", r.status()));
+        return Err(format!(
+            "GitHub answered {} when checking for NGM Addon updates.",
+            r.status()
+        ));
     }
     let rel: Rel = r
         .json()
@@ -95,17 +98,17 @@ pub async fn latest() -> Result<Release, String> {
         .assets
         .into_iter()
         .find(|a| a.name.ends_with("-forever.zip"))
-        .ok_or("That NGM release has no WoW: Forever download.")?;
+        .ok_or("That NGM Addon release has no WoW: Forever download.")?;
     let sha256 = a
         .digest
         .and_then(|d| d.strip_prefix("sha256:").map(str::to_string))
         .filter(|d| d.len() == 64 && d.chars().all(|c| c.is_ascii_hexdigit()))
-        .ok_or("That NGM release has no checksum to check it against.")?;
+        .ok_or("That NGM Addon release has no checksum to check it against.")?;
     if !a.browser_download_url.starts_with(DOWNLOADS)
         || a.size > MAX_ZIP
         || !version.chars().all(|c| c.is_ascii_digit() || c == '.')
     {
-        return Err("That NGM release doesn't look right; not installing it.".into());
+        return Err("That NGM Addon release doesn't look right; not installing it.".into());
     }
     Ok(Release {
         version,
@@ -121,11 +124,11 @@ pub async fn download(r: &Release) -> Result<Vec<u8>, String> {
         .get(&r.url)
         .send()
         .await
-        .map_err(|_| "Couldn't download the NGM update.".to_string())?;
+        .map_err(|_| "Couldn't download the NGM Addon update.".to_string())?;
     if !resp.status().is_success() {
-        return Err(format!("GitHub answered {} for the NGM download.", resp.status()));
+        return Err(format!("GitHub answered {} for the NGM Addon download.", resp.status()));
     }
-    let wrong = || "The NGM download isn't the size GitHub lists; not installing it.".to_string();
+    let wrong = || "The NGM Addon download isn't the size GitHub lists; not installing it.".to_string();
     if resp.content_length().is_some_and(|n| n != r.size) {
         return Err(wrong());
     }
@@ -135,7 +138,7 @@ pub async fn download(r: &Release) -> Result<Vec<u8>, String> {
     while let Some(chunk) = resp
         .chunk()
         .await
-        .map_err(|_| "The NGM download was cut short.".to_string())?
+        .map_err(|_| "The NGM Addon download was cut short.".to_string())?
     {
         bytes.extend_from_slice(&chunk);
         if bytes.len() as u64 > r.size {
@@ -147,7 +150,7 @@ pub async fn download(r: &Release) -> Result<Vec<u8>, String> {
     }
     let sum: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
     if sum != r.sha256 {
-        return Err("The NGM download doesn't match GitHub's checksum; not installing it.".into());
+        return Err("The NGM Addon download doesn't match GitHub's checksum; not installing it.".into());
     }
     Ok(bytes)
 }
@@ -155,7 +158,7 @@ pub async fn download(r: &Release) -> Result<Vec<u8>, String> {
 /// Unpacks only `NootropicGuildManager/...` into `to`, refusing anything
 /// that would land outside it, and within size and file-count limits.
 fn unpack(zip_bytes: &[u8], to: &Path) -> Result<(), String> {
-    let bad = |m: &str| format!("The NGM download {m}; not installing it.");
+    let bad = |m: &str| format!("The NGM Addon download {m}; not installing it.");
     let mut zip = zip::ZipArchive::new(Cursor::new(zip_bytes)).map_err(|_| bad("isn't a proper zip"))?;
     if zip.len() > MAX_FILES {
         return Err(bad("has too many files"));
@@ -167,7 +170,7 @@ fn unpack(zip_bytes: &[u8], to: &Path) -> Result<(), String> {
         let Some(path) = f.enclosed_name() else {
             return Err(bad("has a file in an odd place"));
         };
-        let Ok(rest) = path.strip_prefix(FOLDER) else { continue }; // only NGM's folder
+        let Ok(rest) = path.strip_prefix(FOLDER) else { continue }; // only NGM Addon's folder
                                                                     // the size a zip claims can lie: what's really unpacked is counted below
         if total + f.size() > MAX_UNPACKED {
             return Err(bad("unpacks too big"));
@@ -195,7 +198,7 @@ fn unpack(zip_bytes: &[u8], to: &Path) -> Result<(), String> {
         fs::write(&out, data).map_err(|e| e.to_string())?;
     }
     if !any_toc {
-        return Err(bad("isn't NGM"));
+        return Err(bad("isn't NGM Addon"));
     }
     Ok(())
 }
@@ -211,7 +214,7 @@ fn toc_files(dir: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Puts a checked download in place of the installed NGM, all at once.
+/// Puts a checked download in place of the installed NGM Addon, all at once.
 /// True when its file list changed.
 pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<bool, String> {
     let addons = forever.join("Interface").join("AddOns");
@@ -219,7 +222,7 @@ pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<bool, String> {
     let old = addons.join(".NootropicGuildManager.old");
     let _ = fs::remove_dir_all(&staging);
     let _ = fs::remove_dir_all(&old);
-    fs::create_dir_all(&staging).map_err(|e| format!("Couldn't update NGM: {e}"))?;
+    fs::create_dir_all(&staging).map_err(|e| format!("Couldn't update NGM Addon: {e}"))?;
     if let Err(e) = unpack(zip_bytes, &staging) {
         let _ = fs::remove_dir_all(&staging);
         return Err(e);
@@ -229,13 +232,13 @@ pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<bool, String> {
     let files_changed = toc_files(&live) != toc_files(&staging);
     if had {
         fs::rename(&live, &old)
-            .map_err(|e| format!("Couldn't update NGM (a file may be in use; try again with WoW closed): {e}"))?;
+            .map_err(|e| format!("Couldn't update NGM Addon (a file may be in use; try again with WoW closed): {e}"))?;
     }
     if let Err(e) = fs::rename(&staging, &live) {
         if had {
             let _ = fs::rename(&old, &live); // put it back
         }
-        return Err(format!("Couldn't update NGM: {e}"));
+        return Err(format!("Couldn't update NGM Addon: {e}"));
     }
     let _ = fs::remove_dir_all(&old);
     Ok(files_changed)
@@ -301,8 +304,11 @@ mod tests {
         assert_eq!(installed(&root).as_deref(), Some("3.0.8"));
         assert!(addons.join(FOLDER).join("Core/Core.lua").is_file());
         assert!(!addons.join(FOLDER).join("old.lua").exists(), "a clean copy");
-        assert!(!addons.join("OtherAddon").exists(), "nothing outside NGM's folder");
-        // a path escaping the folder, or a zip without NGM: refused, NGM untouched
+        assert!(
+            !addons.join("OtherAddon").exists(),
+            "nothing outside NGM Addon's folder"
+        );
+        // a path escaping the folder, or a zip without NGM Addon: refused, NGM Addon untouched
         let escape = zip_of(&[
             ("NootropicGuildManager/../../../evil.lua", "x"),
             ("NootropicGuildManager/NootropicGuildManager.toc", "## Version: 9\n"),
@@ -312,7 +318,7 @@ mod tests {
         assert!(install(&root, b"not a zip").is_err());
         assert_eq!(installed(&root).as_deref(), Some("3.0.8"));
         assert!(!root.join("evil.lua").exists());
-        // too big once unpacked (it compresses to almost nothing): refused, NGM untouched
+        // too big once unpacked (it compresses to almost nothing): refused, NGM Addon untouched
         let zeros = "\0".repeat((MAX_UNPACKED + 1) as usize);
         let bomb = zip_of(&[
             ("NootropicGuildManager/NootropicGuildManager.toc", "## Version: 9\n"),

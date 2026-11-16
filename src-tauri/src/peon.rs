@@ -135,7 +135,7 @@ pub struct Sent {
     pub ranks: bool,
 }
 
-/// Step 2: an update code from NGM's saved data.
+/// Step 2: an update code from NGM Addon's saved data.
 pub async fn update(key: &str, code: &str) -> Result<Sent, Error> {
     let r = client()?
         .post(format!("{}/update", base()))

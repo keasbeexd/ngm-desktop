@@ -1,8 +1,8 @@
 //! The app's own small addon, `Interface/AddOns/NootropicGuildManager_Peon/`:
-//! the only place it writes in the game folder. Its being there tells NGM
-//! that the app is installed (so NGM leaves its update code at logout for
+//! the only place it writes in the game folder. Its being there tells NGM Addon
+//! that the app is installed (so NGM Addon leaves its update code at logout for
 //! the app to send), and it carries NGM Peon's codes for the addon, one per
-//! guild, which NGM brings in at login and /reload like /ngm peon.
+//! guild, which NGM Addon brings in at login and /reload like /ngm peon.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -14,8 +14,8 @@ pub fn dir(forever: &Path) -> PathBuf {
     forever.join("Interface").join("AddOns").join(NAME)
 }
 
-/// The game version NGM itself says it's for (its TOC), so the game never
-/// calls the app's addon out of date when NGM isn't.
+/// The game version NGM Addon says it's for (its TOC), so the game never
+/// calls the app's addon out of date when NGM Addon isn't.
 fn interface(forever: &Path) -> String {
     let toc = forever
         .join("Interface")
@@ -34,7 +34,7 @@ fn interface(forever: &Path) -> String {
 
 fn toc(forever: &Path) -> String {
     format!(
-        "## Interface: {}\n## Title: NGM Desktop\n## Notes: Written by the NGM Desktop app: tells NGM it's here and brings NGM Peon's news. Don't edit; the app rewrites it.\n## Author: keasbeexd\n## Version: {}\n## Dependencies: NootropicGuildManager\n\nData.lua\n",
+        "## Interface: {}\n## Title: NGM Desktop\n## Notes: Written by the NGM Desktop app: tells NGM Addon it's here and brings NGM Peon's news. Don't edit; the app rewrites it.\n## Author: keasbeexd\n## Version: {}\n## Dependencies: NootropicGuildManager\n\nData.lua\n",
         interface(forever),
         env!("CARGO_PKG_VERSION")
     )

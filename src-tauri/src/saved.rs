@@ -1,9 +1,9 @@
-//! Reading NGM's saved data (`WTF/Account/<account>/SavedVariables/NootropicGuildManager.lua`).
+//! Reading NGM Addon's saved data (`WTF/Account/<account>/SavedVariables/NootropicGuildManager.lua`).
 //!
-//! The file is never run: the app only looks for the update codes NGM
+//! The file is never run: the app only looks for the update codes NGM Addon
 //! leaves in it at logout, lines like
 //!     ["desktopCode"] = "NGM2.<base64url>.<8 hex digits>",
-//! and takes a code only if every character is one a code can have. NGM
+//! and takes a code only if every character is one a code can have. NGM Addon
 //! Peon checks the code's own checksum and everything in it again.
 
 use std::fs;
