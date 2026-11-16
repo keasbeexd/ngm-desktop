@@ -15,8 +15,8 @@ function render(v) {
   $("wow-path").textContent = v.wow ?? "";
   $("wow-accounts").hidden = !v.wow;
   $("wow-accounts").textContent = v.accounts.length === 0
-    ? "No NGM data here yet: log in to WoW with the addon once."
-    : `NGM data for ${v.accounts.length} WoW account${v.accounts.length === 1 ? "" : "s"}.`;
+    ? "No NGM Addon data here yet: log in to WoW with the NGM Addon once."
+    : `NGM Addon data for ${v.accounts.length} WoW account${v.accounts.length === 1 ? "" : "s"}.`;
   $("choose").textContent = v.wow ? "Change folder" : "Choose folder";
 
   $("helper-new").hidden = !v.helper_new;
@@ -36,10 +36,10 @@ function render(v) {
 
   const a = v.addon;
   $("addon-have").textContent = !a.installed
-    ? "NGM isn't installed in this game folder."
+    ? "NGM Addon isn't installed in this game folder."
     : a.behind
-      ? `Installed: NGM ${a.installed}. Newest: ${a.latest}.`
-      : `Installed: NGM ${a.installed}${a.latest ? " (up to date)" : ""}.`;
+      ? `Installed: NGM Addon ${a.installed}. Newest: ${a.latest}.`
+      : `Installed: NGM Addon ${a.installed}${a.latest ? " (up to date)" : ""}.`;
   $("auto-addon").checked = a.auto;
   $("addon-msg").hidden = !a.message;
   $("addon-msg").textContent = a.message ?? "";

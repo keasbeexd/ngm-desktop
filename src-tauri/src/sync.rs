@@ -1,5 +1,5 @@
-//! Step 2, by itself: watch NGM's saved data, and when the game rewrites it
-//! (logout or /reload), send the update codes NGM left in it to NGM Peon.
+//! Step 2, by itself: watch NGM Addon's saved data, and when the game rewrites it
+//! (logout or /reload), send the update codes NGM Addon left in it to NGM Peon.
 //!
 //! Idle otherwise: a file watcher, no timers. Waits until the game has
 //! finished writing (a few quiet seconds), then sends each code once.
