@@ -69,7 +69,7 @@ pub async fn fetch(handle: &AppHandle) {
 async fn fetch_in(handle: &AppHandle, app: &crate::App) -> Option<()> {
     let key = store::key()?;
     let forever = app.settings.lock().unwrap().wow.clone()?;
-    let guilds = peon::me(&key).await.ok()?;
+    let guilds = crate::my_guilds(app, &key, false).await.ok()?;
     let mut changed = false;
     for g in guilds.iter().filter(|g| g.role.is_some()) {
         let id = format!("{}/{}", g.region, g.name);

@@ -28,6 +28,27 @@ struct App {
     news: news::News,
     /// NGM's own updates: what's installed, the newest, and how the last try went
     addon: Mutex<AddonState>,
+    /// the guilds this account is linked in, and when NGM Peon said so
+    guilds: Mutex<Option<(std::time::Instant, Vec<peon::Guild>)>>,
+}
+
+/// How long the guild list is trusted before asking NGM Peon again (the
+/// window redraws often; NGM Peon allows 120 requests an hour per computer).
+const GUILDS_FOR: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
+/// The guilds this account is linked in: remembered for a while, asked again
+/// when `fresh` (after connecting) or when old.
+async fn my_guilds(app: &App, key: &str, fresh: bool) -> Result<Vec<peon::Guild>, peon::Error> {
+    if !fresh {
+        if let Some((at, g)) = app.guilds.lock().unwrap().as_ref() {
+            if at.elapsed() < GUILDS_FOR {
+                return Ok(g.clone());
+            }
+        }
+    }
+    let g = peon::me(key).await?;
+    *app.guilds.lock().unwrap() = Some((std::time::Instant::now(), g.clone()));
+    Ok(g)
 }
 
 #[derive(Default, Clone, Serialize)]
@@ -92,7 +113,7 @@ async fn view(app: &App, error: Option<String>) -> View {
         },
     };
     if let Some(key) = store::key() {
-        match peon::me(&key).await {
+        match my_guilds(app, &key, false).await {
             Ok(g) => {
                 v.connected = true;
                 v.guilds = g;
@@ -179,6 +200,7 @@ async fn connect(handle: AppHandle, app: State<'_, App>, code: String) -> Result
         Ok(key) => {
             let err = store::set_key(&key).err();
             if err.is_none() {
+                let _ = my_guilds(&app, &key, true).await; // a new account: ask afresh
                 sync::run(&handle).await; // anything already waiting
             }
             Ok(view(&app, err).await)
@@ -289,6 +311,7 @@ fn open_link(handle: AppHandle, which: String) -> Result<(), String> {
 #[tauri::command]
 async fn disconnect(app: State<'_, App>) -> Result<View, String> {
     store::forget_key();
+    *app.guilds.lock().unwrap() = None;
     Ok(view(&app, None).await)
 }
 
@@ -362,6 +385,7 @@ pub fn run() {
                 sync: sync::Sync::default(),
                 news: news::News::default(),
                 addon: Mutex::new(AddonState::default()),
+                guilds: Mutex::new(None),
             });
             if let Some(p) = wow {
                 if let Err(e) = sync::start(app.handle(), &p) {
