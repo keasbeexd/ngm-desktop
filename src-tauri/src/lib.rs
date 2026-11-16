@@ -98,6 +98,10 @@ struct AppView {
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
+    // each lock taken and released on its own line: a lock held inside the
+    // struct below while another field locks the same thing again would hang
+    let auto_app = app.settings.lock().unwrap().auto_app;
+    let app_message = app.app_update.lock().unwrap().clone();
     let wow = app.settings.lock().unwrap().wow.clone();
     let accounts = wow.as_deref().map(wow::accounts).unwrap_or_default();
     let mut v = View {
@@ -111,8 +115,8 @@ async fn view(app: &App, error: Option<String>) -> View {
         note: None,
         app: AppView {
             version: env!("CARGO_PKG_VERSION"),
-            auto: app.settings.lock().unwrap().auto_app,
-            message: app.app_update.lock().unwrap().clone(),
+            auto: auto_app,
+            message: app_message,
         },
         addon: {
             let a = app.addon.lock().unwrap().clone();
