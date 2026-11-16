@@ -1,7 +1,10 @@
 node_modules/
-target/
+src-tauri/target/
 dist/
 .DS_Store
 
 # Agent-local permission rules can hold tokens from "don't ask again" prompts
 .claude/settings.local.json
+
+# Tauri: generated at build time
+src-tauri/gen/

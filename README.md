@@ -6,7 +6,23 @@ itself: when WoW saves NGM's data (logout or `/reload`), it sends NGM Peon
 what changed in game, and it keeps NGM Peon's news (events, Hall of Fame,
 mains and roles) ready for the addon to load.
 
-**Status:** being designed. Nothing to download yet.
+**Status:** early skeleton (finds the game, connects to NGM Peon, lives in
+the tray). Syncing comes next. Nothing to download yet.
+
+## Building
+
+Needs Rust (the version in `rust-toolchain.toml`) and Node.js, plus on Linux
+the WebKitGTK 4.1, GTK 3, librsvg and an AppIndicator library.
+
+```
+npm install
+npm run dev      # run it
+npm run build    # installers for this system
+```
+
+`src-tauri/` is the app (Rust): `wow.rs` finds the game, `peon.rs` talks to
+NGM Peon, `store.rs` keeps the settings and this computer's key. `src/` is
+its window (plain HTML, CSS and JavaScript).
 
 ## What it touches
 
@@ -26,5 +42,8 @@ built from it in GitHub Actions with build attestations.
 
 [PolyForm Shield 1.0.0](LICENSE): free to use, read, change and share, but
 not to build a competing product.
+
+The fonts in `src/fonts` (Cinzel and Rubik) are under the SIL Open Font
+License (their own license files are next to them).
 
 Not affiliated with Blizzard Entertainment or Discord.
