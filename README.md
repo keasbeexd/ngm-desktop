@@ -33,7 +33,7 @@ its window (plain HTML, CSS and JavaScript).
   `World of Warcraft/_forever_/Interface/AddOns/NootropicGuildManager_Peon/`.
   If you tick **Keep NGM up to date**, it also replaces NGM's own folder with
   new releases: only from GitHub's release page for NGM, only after checking
-  GitHub's SHA-256 for the file, only while WoW is closed.
+  GitHub's SHA-256 for the file; with WoW open, a `/reload` loads it.
 - **Talks** to `ngmpeon.app` over HTTPS, and to GitHub (api.github.com and
   its downloads) only to check for and fetch NGM releases.
 - Never reads game memory, never sends input to the game, never touches

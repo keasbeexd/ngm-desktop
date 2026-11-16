@@ -1,7 +1,8 @@
 //! Keeping NGM itself up to date (only when the player ticks the box): the
 //! newest release from GitHub (keasbeexd/nootropic-guild-manager), checked
-//! against GitHub's SHA-256 for that file, installed only while WoW is
-//! closed, all at once (the old folder comes back if anything fails).
+//! against GitHub's SHA-256 for that file, installed all at once (the old
+//! folder comes back if anything fails). WoW may be running: addons load
+//! their files at login and /reload, so the new version takes over then.
 
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -182,8 +183,20 @@ fn unpack(zip_bytes: &[u8], to: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The files a TOC lists (to tell whether an update changed the list:
+/// /reload loads changed files, a new list may need a restart).
+fn toc_files(dir: &Path) -> Vec<String> {
+    let toc = fs::read_to_string(dir.join(format!("{FOLDER}.toc"))).unwrap_or_default();
+    toc.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect()
+}
+
 /// Puts a checked download in place of the installed NGM, all at once.
-pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<(), String> {
+/// True when its file list changed.
+pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<bool, String> {
     let addons = forever.join("Interface").join("AddOns");
     let staging = addons.join(".NootropicGuildManager.new");
     let old = addons.join(".NootropicGuildManager.old");
@@ -196,8 +209,10 @@ pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<(), String> {
     }
     let live = folder(forever);
     let had = live.exists();
+    let files_changed = toc_files(&live) != toc_files(&staging);
     if had {
-        fs::rename(&live, &old).map_err(|e| format!("Couldn't update NGM (is WoW still open?): {e}"))?;
+        fs::rename(&live, &old)
+            .map_err(|e| format!("Couldn't update NGM (a file may be in use; try again with WoW closed): {e}"))?;
     }
     if let Err(e) = fs::rename(&staging, &live) {
         if had {
@@ -206,7 +221,7 @@ pub fn install(forever: &Path, zip_bytes: &[u8]) -> Result<(), String> {
         return Err(format!("Couldn't update NGM: {e}"));
     }
     let _ = fs::remove_dir_all(&old);
-    Ok(())
+    Ok(files_changed)
 }
 
 #[cfg(test)]
@@ -243,14 +258,29 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         let addons = root.join("Interface/AddOns");
         fs::create_dir_all(addons.join(FOLDER)).unwrap();
-        fs::write(addons.join(FOLDER).join(format!("{FOLDER}.toc")), "## Version: 3.0.7\n").unwrap();
+        fs::write(
+            addons.join(FOLDER).join(format!("{FOLDER}.toc")),
+            "## Version: 3.0.7\nold.lua\n",
+        )
+        .unwrap();
         fs::write(addons.join(FOLDER).join("old.lua"), "gone").unwrap();
         let good = zip_of(&[
-            ("NootropicGuildManager/NootropicGuildManager.toc", "## Version: 3.0.8\n"),
+            (
+                "NootropicGuildManager/NootropicGuildManager.toc",
+                "## Version: 3.0.8\nCore/Core.lua\n",
+            ),
             ("NootropicGuildManager/Core/Core.lua", "-- core"),
             ("OtherAddon/evil.lua", "x"),
         ]);
-        install(&root, &good).unwrap();
+        assert!(install(&root, &good).unwrap(), "a new file list (Core/Core.lua added)");
+        let same = zip_of(&[
+            (
+                "NootropicGuildManager/NootropicGuildManager.toc",
+                "## Version: 3.0.8\nCore/Core.lua\n",
+            ),
+            ("NootropicGuildManager/Core/Core.lua", "-- core, changed"),
+        ]);
+        assert!(!install(&root, &same).unwrap(), "same file list: /reload is enough");
         assert_eq!(installed(&root).as_deref(), Some("3.0.8"));
         assert!(addons.join(FOLDER).join("Core/Core.lua").is_file());
         assert!(!addons.join(FOLDER).join("old.lua").exists(), "a clean copy");

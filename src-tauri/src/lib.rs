@@ -226,21 +226,23 @@ async fn update_addon(handle: &AppHandle, now: bool) {
     if !behind || !(now || auto) {
         return set(Some(rel.version), None);
     }
-    if news::game_running() {
-        return set(
-            Some(rel.version.clone()),
-            Some(format!("NGM {} is out. It installs once WoW is closed.", rel.version)),
-        );
-    }
+    // WoW may be running: addons load their files at login and /reload, so
+    // the new version takes over then (a changed file list: restart once)
+    let running = news::game_running();
     let result = match addon::download(&rel).await {
         Ok(bytes) => addon::install(&forever, &bytes),
         Err(e) => Err(e),
     };
     match result {
-        Ok(()) => {
+        Ok(files_changed) => {
+            let next = match (running, files_changed) {
+                (false, _) => "",
+                (true, false) => " Type /reload in WoW to load it.",
+                (true, true) => " Restart WoW once to load it (its file list changed).",
+            };
             set(
                 Some(rel.version.clone()),
-                Some(format!("Updated NGM to {}.", rel.version)),
+                Some(format!("Updated NGM to {}.{next}", rel.version)),
             );
             let _ = companion::ensure(&forever); // its game version follows NGM's
         }
