@@ -1,9 +1,13 @@
-//! NGM Desktop (milestone 2: the skeleton). Lives in the tray; its window
-//! finds WoW: Forever and connects this computer to NGM Peon. Sending and
-//! bringing back the addon's data comes in milestones 3 and 4.
+//! NGM Desktop. Lives in the tray; its window finds WoW: Forever and
+//! connects this computer to NGM Peon. When the game saves NGM's data, it
+//! sends NGM Peon the update code NGM left (sync.rs). Bringing NGM Peon's
+//! data back comes in milestone 4.
 
+mod companion;
 mod peon;
+mod saved;
 mod store;
+mod sync;
 mod wow;
 
 use serde::Serialize;
@@ -17,6 +21,7 @@ use tauri_plugin_dialog::DialogExt;
 struct App {
     settings: Mutex<store::Settings>,
     dir: PathBuf,
+    sync: sync::Sync,
 }
 
 /// Everything the window shows.
@@ -28,6 +33,10 @@ struct View {
     connected: bool,
     guilds: Vec<peon::Guild>,
     error: Option<String>,
+    /// the last time the app sent NGM Peon an update
+    last: Option<sync::Last>,
+    /// the app's addon was just added: restart WoW once
+    helper_new: bool,
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
@@ -39,6 +48,8 @@ async fn view(app: &App, error: Option<String>) -> View {
         connected: false,
         guilds: vec![],
         error,
+        last: app.sync.last.lock().unwrap().clone(),
+        helper_new: *app.sync.helper_new.lock().unwrap(),
     };
     if let Some(key) = store::key() {
         match peon::me(&key).await {
@@ -59,10 +70,14 @@ async fn view(app: &App, error: Option<String>) -> View {
     v
 }
 
-fn set_wow(app: &App, path: Option<PathBuf>) -> Result<(), String> {
-    let mut s = app.settings.lock().unwrap();
-    s.wow = path;
-    store::save(&app.dir, &s)
+// Saves the game folder and starts watching it.
+fn set_wow(handle: &AppHandle, app: &App, path: PathBuf) -> Result<(), String> {
+    {
+        let mut s = app.settings.lock().unwrap();
+        s.wow = Some(path.clone());
+        store::save(&app.dir, &s)?;
+    }
+    sync::start(handle, &path)
 }
 
 #[tauri::command]
@@ -72,13 +87,17 @@ async fn state(app: State<'_, App>) -> Result<View, String> {
 
 /// Looks in the usual places.
 #[tauri::command]
-async fn find_wow(app: State<'_, App>) -> Result<View, String> {
+async fn find_wow(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
     match wow::find() {
         Some(p) => {
-            let err = set_wow(&app, Some(p)).err();
+            let err = set_wow(&handle, &app, p).err();
             Ok(view(&app, err).await)
         }
-        None => Ok(view(&app, Some("Couldn't find WoW: Forever on this computer. Choose its folder.".into())).await),
+        None => Ok(view(
+            &app,
+            Some("Couldn't find WoW: Forever on this computer. Choose its folder.".into()),
+        )
+        .await),
     }
 }
 
@@ -95,7 +114,7 @@ async fn choose_wow(handle: AppHandle, app: State<'_, App>) -> Result<View, Stri
     };
     match wow::normalize(&picked) {
         Some(p) => {
-            let err = set_wow(&app, Some(p)).err();
+            let err = set_wow(&handle, &app, p).err();
             Ok(view(&app, err).await)
         }
         None => Ok(view(
@@ -111,7 +130,7 @@ async fn choose_wow(handle: AppHandle, app: State<'_, App>) -> Result<View, Stri
 
 /// A one-time code from the dashboard.
 #[tauri::command]
-async fn connect(app: State<'_, App>, code: String) -> Result<View, String> {
+async fn connect(handle: AppHandle, app: State<'_, App>, code: String) -> Result<View, String> {
     let code: String = code.chars().filter(|c| c.is_ascii_alphanumeric()).take(16).collect();
     if code.len() != 8 {
         return Ok(view(&app, Some("The code has 8 letters and numbers, like ABCD-EFGH.".into())).await);
@@ -119,10 +138,20 @@ async fn connect(app: State<'_, App>, code: String) -> Result<View, String> {
     match peon::link(&code, &device_name()).await {
         Ok(key) => {
             let err = store::set_key(&key).err();
+            if err.is_none() {
+                sync::run(&handle).await; // anything already waiting
+            }
             Ok(view(&app, err).await)
         }
         Err(e) => Ok(view(&app, Some(e.to_string())).await),
     }
+}
+
+/// Sends whatever NGM left that wasn't sent yet.
+#[tauri::command]
+async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
+    sync::run(&handle).await;
+    Ok(view(&app, None).await)
 }
 
 /// Forgets this computer's key here (remove it on the dashboard too).
@@ -174,10 +203,18 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
+            let settings = store::load(&dir);
+            let wow = settings.wow.clone();
             app.manage(App {
-                settings: Mutex::new(store::load(&dir)),
+                settings: Mutex::new(settings),
                 dir,
+                sync: sync::Sync::default(),
             });
+            if let Some(p) = wow {
+                if let Err(e) = sync::start(app.handle(), &p) {
+                    eprintln!("{e}");
+                }
+            }
 
             let open = MenuItem::with_id(app, "open", "Open NGM Desktop", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -213,7 +250,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            state, find_wow, choose_wow, connect, disconnect
+            state, find_wow, choose_wow, connect, sync_now, disconnect
         ])
         .run(tauri::generate_context!())
         .expect("NGM Desktop couldn't start");

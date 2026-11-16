@@ -13,6 +13,9 @@ const ACCOUNT: &str = "device-key";
 pub struct Settings {
     /// WoW: Forever's `_forever_` folder
     pub wow: Option<PathBuf>,
+    /// fingerprints of the update codes already sent (the newest few)
+    #[serde(default)]
+    pub sent: Vec<u64>,
 }
 
 pub fn load(dir: &Path) -> Settings {

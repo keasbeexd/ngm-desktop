@@ -37,4 +37,6 @@ button:disabled { opacity: .5; cursor: wait; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--gilt); outline-offset: 3px; }
 form { display: flex; gap: 8px; align-items: center; }
 input { font: 700 1.1rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; width: 11ch; padding: .45rem .6rem; background: var(--bg1); color: var(--fg); border: 2px solid var(--line); border-radius: 0; }
+.note { background: var(--bg1); border-left: 3px solid var(--gilt); padding: 8px 10px; }
+.small-print { font-size: .8rem; margin-top: 6px; }
 footer { padding: 10px 20px; font-size: .75rem; border-top: 1px solid var(--line); }

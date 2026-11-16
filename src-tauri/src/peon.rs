@@ -123,3 +123,31 @@ pub async fn me(key: &str) -> Result<Vec<Guild>, Error> {
         .map_err(|_| Error::Other("NGM Peon's answer didn't make sense.".into()))?;
     Ok(m.guilds)
 }
+
+/// What NGM Peon took from an update.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Sent {
+    pub guild: String,
+    pub role: String,
+    pub stored: u32,
+    pub unchanged: u32,
+    pub refused: u32,
+    pub ranks: bool,
+}
+
+/// Step 2: an update code from NGM's saved data.
+pub async fn update(key: &str, code: &str) -> Result<Sent, Error> {
+    let r = client()?
+        .post(format!("{}/update", base()))
+        .bearer_auth(key)
+        .json(&serde_json::json!({ "code": code }))
+        .send()
+        .await
+        .map_err(offline)?;
+    if !r.status().is_success() {
+        return Err(fail(r).await);
+    }
+    r.json()
+        .await
+        .map_err(|_| Error::Other("NGM Peon's answer didn't make sense.".into()))
+}

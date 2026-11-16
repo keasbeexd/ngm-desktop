@@ -19,6 +19,19 @@ function render(v) {
     : `NGM data for ${v.accounts.length} WoW account${v.accounts.length === 1 ? "" : "s"}.`;
   $("choose").textContent = v.wow ? "Change folder" : "Choose folder";
 
+  $("helper-new").hidden = !v.helper_new;
+  $("send").hidden = !(v.connected && v.wow);
+  if (v.last) {
+    const when = new Date(v.last.at * 1000).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    $("last").textContent = v.last.ok ? `Last sent ${when}:` : `Last try ${when} didn't go through:`;
+    $("last").className = v.last.ok ? "dim" : "bad";
+    $("last-lines").replaceChildren(...v.last.lines.map((l) => {
+      const li = document.createElement("li");
+      li.textContent = l;
+      return li;
+    }));
+  }
+
   $("connect-box").hidden = v.connected;
   $("connected-box").hidden = !v.connected;
   const list = $("guilds");
@@ -49,6 +62,9 @@ async function run(cmd, args, button) {
 
 $("choose").addEventListener("click", (e) => run("choose_wow", {}, e.target));
 $("disconnect").addEventListener("click", (e) => run("disconnect", {}, e.target));
+$("send").addEventListener("click", (e) => run("sync_now", {}, e.target));
+// a send that happened by itself (after a logout): show it
+window.__TAURI__.event.listen("synced", () => run("state", {}));
 $("connect").addEventListener("submit", (e) => {
   e.preventDefault();
   run("connect", { code: $("code").value }).then(() => ($("code").value = ""));

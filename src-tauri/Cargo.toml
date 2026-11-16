@@ -25,6 +25,7 @@ keyring = "=4.2.0"
 reqwest = { version = "=0.13.5", default-features = false, features = ["default-tls", "json", "http2"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
+notify = "=8.2.1"
 
 [profile.release]
 codegen-units = 1
