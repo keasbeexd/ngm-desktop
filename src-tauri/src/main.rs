@@ -9,5 +9,15 @@ fn main() {
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
+    // Linux: the name trays show on hover ("NGM Desktop", not the program's
+    // file name). GLib is already part of the app there (GTK).
+    #[cfg(target_os = "linux")]
+    {
+        extern "C" {
+            fn g_set_application_name(name: *const std::ffi::c_char);
+        }
+        // SAFETY: a static, NUL-terminated string; called once, before GTK starts
+        unsafe { g_set_application_name(c"NGM Desktop".as_ptr()) };
+    }
     ngm_desktop_lib::run()
 }

@@ -13,9 +13,10 @@ mod wow;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, State, WindowEvent};
+use tauri::{AppHandle, Manager, State, Theme, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 struct App {
@@ -188,6 +189,24 @@ fn device_name() -> String {
     }
 }
 
+/// The tray icon: the banner's silhouette, white on dark taskbars and black
+/// on light ones. macOS recolours it by itself (a "template" image).
+fn tray_icon(theme: Theme) -> Image<'static> {
+    let bytes: &'static [u8] = if cfg!(target_os = "macos") || theme == Theme::Light {
+        include_bytes!("../icons/tray-black.png")
+    } else {
+        include_bytes!("../icons/tray-white.png")
+    };
+    Image::from_bytes(bytes).expect("the tray icon")
+}
+
+fn system_theme(handle: &AppHandle) -> Theme {
+    handle
+        .get_webview_window("main")
+        .and_then(|w| w.theme().ok())
+        .unwrap_or(Theme::Dark)
+}
+
 fn show(handle: &AppHandle) {
     if let Some(w) = handle.get_webview_window("main") {
         let _ = w.show();
@@ -220,7 +239,8 @@ pub fn run() {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &quit])?;
             TrayIconBuilder::with_id("tray")
-                .icon(app.default_window_icon().cloned().expect("the app's icon"))
+                .icon(tray_icon(system_theme(app.handle())))
+                .icon_as_template(true)
                 .tooltip("NGM Desktop")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -244,9 +264,18 @@ pub fn run() {
         })
         // closing the window keeps the app in the tray (Quit is in its menu)
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+                // light or dark switched: the tray icon follows
+                WindowEvent::ThemeChanged(theme) => {
+                    if let Some(tray) = window.app_handle().tray_by_id("tray") {
+                        let _ = tray.set_icon(Some(tray_icon(*theme)));
+                    }
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
