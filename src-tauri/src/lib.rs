@@ -5,6 +5,8 @@
 
 mod addon;
 mod companion;
+#[cfg(target_os = "linux")]
+mod launcher;
 mod news;
 mod peon;
 mod saved;
@@ -467,6 +469,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            launcher::ensure(); // as an AppImage: an app launcher entry, no terminal needed
             let dir = app.path().app_config_dir()?;
             let settings = store::load(&dir);
             let wow = settings.wow.clone();

@@ -19,5 +19,17 @@ fn main() {
         // SAFETY: a static, NUL-terminated string; called once, before GTK starts
         unsafe { g_set_application_name(c"NGM Desktop".as_ptr()) };
     }
+    // Linux: keep running when the terminal that started it closes (a tray
+    // app shouldn't quit on the terminal's "hang up" signal).
+    #[cfg(target_os = "linux")]
+    {
+        extern "C" {
+            fn signal(signum: i32, handler: usize) -> usize;
+        }
+        const SIGHUP: i32 = 1;
+        const SIG_IGN: usize = 1;
+        // SAFETY: ignoring a signal before any thread starts
+        unsafe { signal(SIGHUP, SIG_IGN) };
+    }
     ngm_desktop_lib::run()
 }
