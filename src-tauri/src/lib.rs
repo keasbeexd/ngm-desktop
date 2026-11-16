@@ -34,7 +34,7 @@ struct App {
 
 /// How long the guild list is trusted before asking NGM Peon again (the
 /// window redraws often; NGM Peon allows 120 requests an hour per computer).
-const GUILDS_FOR: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+const GUILDS_FOR: std::time::Duration = std::time::Duration::from_secs(15 * 60);
 
 /// The guilds this account is linked in: remembered for a while, asked again
 /// when `fresh` (after connecting) or when old.
@@ -392,7 +392,7 @@ pub fn run() {
                     eprintln!("{e}");
                 }
             }
-            news::start(app.handle()); // every few minutes, only while WoW runs
+            news::start(app.handle()); // every 10 minutes, only while WoW runs
 
             let open = MenuItem::with_id(app, "open", "Open NGM Desktop", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
