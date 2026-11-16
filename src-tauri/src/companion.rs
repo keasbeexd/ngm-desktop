@@ -1,7 +1,8 @@
 //! The app's own small addon, `Interface/AddOns/NootropicGuildManager_Peon/`:
 //! the only place it writes in the game folder. Its being there tells NGM
-//! that the app is installed, so NGM leaves its update code at logout for
-//! the app to send. (Milestone 4 adds NGM Peon's data to it.)
+//! that the app is installed (so NGM leaves its update code at logout for
+//! the app to send), and it carries NGM Peon's codes for the addon, one per
+//! guild, which NGM brings in at login and /reload like /ngm peon.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,17 +34,36 @@ fn interface(forever: &Path) -> String {
 
 fn toc(forever: &Path) -> String {
     format!(
-        "## Interface: {}\n## Title: NGM Peon |cff9d9d9d(desktop app)|r\n## Notes: Written by NGM Desktop: tells NGM the app is here (and, soon, brings NGM Peon's news). Don't edit; the app rewrites it.\n## Author: keasbeexd\n## Version: {}\n## Dependencies: NootropicGuildManager\n\nData.lua\n",
+        "## Interface: {}\n## Title: NGM Peon |cff9d9d9d(desktop app)|r\n## Notes: Written by NGM Desktop: tells NGM the app is here and brings NGM Peon's news. Don't edit; the app rewrites it.\n## Author: keasbeexd\n## Version: {}\n## Dependencies: NootropicGuildManager\n\nData.lua\n",
         interface(forever),
         env!("CARGO_PKG_VERSION")
     )
 }
 
-fn data() -> String {
+/// NGM Peon's codes for the addon: `NGMP1.<base64url>.<8 hex digits>`,
+/// nothing else (they go into a Lua file, so only these characters).
+pub fn valid_code(code: &str) -> bool {
+    let parts: Vec<&str> = code.split('.').collect();
+    code.len() <= 200_000
+        && parts.len() == 3
+        && parts[0] == "NGMP1"
+        && !parts[1].is_empty()
+        && parts[1]
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        && parts[2].len() == 8
+        && parts[2].chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn data(codes: &[String]) -> String {
+    let list: String = codes
+        .iter()
+        .filter(|c| valid_code(c))
+        .map(|c| format!("  \"{c}\",\n"))
+        .collect();
     format!(
-        "-- Written by NGM Desktop ({}). Don't edit: the app rewrites it.\nNGMPeonDesktop = {{ app = \"{}\" }}\n",
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_VERSION")
+        "-- Written by NGM Desktop ({v}). Don't edit: the app rewrites it.\nNGMPeonDesktop = {{ app = \"{v}\", codes = {{\n{list}}} }}\n",
+        v = env!("CARGO_PKG_VERSION")
     )
 }
 
@@ -59,14 +79,33 @@ fn put(path: &Path, text: &str) -> std::io::Result<bool> {
     Ok(true)
 }
 
-/// Makes sure the addon is there and current. True when it was just made
-/// (the game loads new addons only when it starts).
+/// Makes sure the addon is there and current, keeping the codes it has.
+/// True when it was just made (the game loads new addons only when it starts).
 pub fn ensure(forever: &Path) -> Result<bool, String> {
+    write(forever, None)
+}
+
+/// The same, with NGM Peon's newest codes.
+pub fn set_codes(forever: &Path, codes: &[String]) -> Result<bool, String> {
+    write(forever, Some(codes))
+}
+
+fn write(forever: &Path, codes: Option<&[String]>) -> Result<bool, String> {
     let d = dir(forever);
     let new = !d.join(format!("{NAME}.toc")).is_file();
-    fs::create_dir_all(&d).map_err(|e| format!("Couldn't add the app's addon: {e}"))?;
-    put(&d.join(format!("{NAME}.toc")), &toc(forever)).map_err(|e| format!("Couldn't write the app's addon: {e}"))?;
-    put(&d.join("Data.lua"), &data()).map_err(|e| format!("Couldn't write the app's addon: {e}"))?;
+    let fail = |e: std::io::Error| format!("Couldn't write the app's addon: {e}");
+    fs::create_dir_all(&d).map_err(fail)?;
+    put(&d.join(format!("{NAME}.toc")), &toc(forever)).map_err(fail)?;
+    let file = d.join("Data.lua");
+    match codes {
+        Some(c) => {
+            put(&file, &data(c)).map_err(fail)?;
+        }
+        None if !file.is_file() => {
+            put(&file, &data(&[])).map_err(fail)?;
+        }
+        None => {}
+    }
     Ok(new)
 }
 
@@ -75,7 +114,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn writes_its_addon_with_ngms_game_version_and_only_when_needed() {
+    fn writes_its_addon_with_ngms_game_version_and_only_well_formed_codes() {
         let root = std::env::temp_dir().join(format!("ngm-desktop-companion-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let ngm = root.join("Interface/AddOns/NootropicGuildManager");
@@ -90,9 +129,21 @@ mod tests {
         let toc = fs::read_to_string(dir(&root).join(format!("{NAME}.toc"))).unwrap();
         assert!(toc.starts_with("## Interface: 16002\n"));
         assert!(toc.contains("## Dependencies: NootropicGuildManager\n"));
-        assert!(fs::read_to_string(dir(&root).join("Data.lua"))
-            .unwrap()
-            .contains("NGMPeonDesktop = {"));
+        let read = || fs::read_to_string(dir(&root).join("Data.lua")).unwrap();
+        assert!(read().contains("NGMPeonDesktop = {"));
+        set_codes(
+            &root,
+            &[
+                "NGMP1.dXM.0011aabb".into(),
+                "NGMP1.x\"); os.exit(\".0011aabb".into(),
+                "NGM2.dXM.0011aabb".into(),
+            ],
+        )
+        .unwrap();
+        assert!(read().contains("  \"NGMP1.dXM.0011aabb\",\n"));
+        assert!(!read().contains("os.exit") && !read().contains("NGM2"));
+        ensure(&root).unwrap();
+        assert!(read().contains("NGMP1.dXM.0011aabb"), "ensure keeps the codes");
         let _ = fs::remove_dir_all(&root);
     }
 }

@@ -4,6 +4,7 @@
 //! data back comes in milestone 4.
 
 mod companion;
+mod news;
 mod peon;
 mod saved;
 mod store;
@@ -23,6 +24,7 @@ struct App {
     settings: Mutex<store::Settings>,
     dir: PathBuf,
     sync: sync::Sync,
+    news: news::News,
 }
 
 /// Everything the window shows.
@@ -230,6 +232,7 @@ pub fn run() {
         // a second launch just shows the window that's already running
         .plugin(tauri_plugin_single_instance::init(|handle, _args, _cwd| show(handle)))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
             let settings = store::load(&dir);
@@ -238,12 +241,14 @@ pub fn run() {
                 settings: Mutex::new(settings),
                 dir,
                 sync: sync::Sync::default(),
+                news: news::News::default(),
             });
             if let Some(p) = wow {
                 if let Err(e) = sync::start(app.handle(), &p) {
                     eprintln!("{e}");
                 }
             }
+            news::start(app.handle()); // every few minutes, only while WoW runs
 
             let open = MenuItem::with_id(app, "open", "Open NGM Desktop", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

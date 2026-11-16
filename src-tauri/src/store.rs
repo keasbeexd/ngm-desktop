@@ -16,6 +16,9 @@ pub struct Settings {
     /// fingerprints of the update codes already sent (the newest few)
     #[serde(default)]
     pub sent: Vec<u64>,
+    /// per guild: the events this computer has seen (for "new event" notifications)
+    #[serde(default)]
+    pub seen_events: std::collections::HashMap<String, Vec<String>>,
 }
 
 pub fn load(dir: &Path) -> Settings {
