@@ -4,7 +4,7 @@ The desktop app for [NGM Peon](https://ngmpeon.app) and the Nootropic Guild
 Manager addon for WoW: Forever. It does the dashboard's Sync steps by
 itself: when WoW saves NGM Addon's data (logout or `/reload`), it sends NGM Peon
 what changed in game, and it keeps NGM Peon's news (events, Hall of Fame,
-mains and roles) ready for the addon to load.
+mains and roles) ready for the NGM Addon to load.
 
 **Status:** working, being tested in one guild: it finds the game,
 connects to NGM Peon, sends your changes when WoW saves, brings NGM Peon's
