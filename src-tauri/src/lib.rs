@@ -101,12 +101,15 @@ struct AppView {
     message: Option<String>,
     /// a newer version is out (shows "Update NGM Desktop")
     latest: Option<String>,
+    /// starts with the computer, into the tray
+    start_at_login: bool,
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
     // each lock taken and released on its own line: a lock held inside the
     // struct below while another field locks the same thing again would hang
     let auto_app = app.settings.lock().unwrap().auto_app;
+    let start_at_login = app.settings.lock().unwrap().start_at_login;
     let app_message = app.app_update.lock().unwrap().clone();
     let app_latest = app.app_latest.lock().unwrap().clone();
     let wow = app.settings.lock().unwrap().wow.clone();
@@ -125,6 +128,7 @@ async fn view(app: &App, error: Option<String>) -> View {
             auto: auto_app,
             message: app_message,
             latest: app_latest,
+            start_at_login,
         },
         addon: {
             let a = app.addon.lock().unwrap().clone();
@@ -350,6 +354,37 @@ async fn set_auto_app(handle: AppHandle, app: State<'_, App>, on: bool) -> Resul
     Ok(view(&app, None).await)
 }
 
+/// Starting with the computer (into the tray): Linux writes its own login
+/// entry (launcher.rs); Windows and macOS use the system's own list.
+fn apply_login(handle: &AppHandle, on: bool) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let _ = handle;
+        launcher::set_login(on)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        if cfg!(debug_assertions) {
+            return Err("Starts with the computer only once installed from a release.".into());
+        }
+        let m = handle.autolaunch();
+        if on { m.enable() } else { m.disable() }
+            .map_err(|e| format!("Couldn't change starting with the computer: {e}"))
+    }
+}
+
+#[tauri::command]
+async fn set_start_at_login(handle: AppHandle, app: State<'_, App>, on: bool) -> Result<View, String> {
+    let err = apply_login(&handle, on).err();
+    {
+        let mut s = app.settings.lock().unwrap();
+        s.start_at_login = on;
+        store::save(&app.dir, &s)?;
+    }
+    Ok(view(&app, if on { err } else { None }).await)
+}
+
 /// "Update NGM Desktop": install the newer version now.
 #[tauri::command]
 async fn check_app(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
@@ -461,7 +496,13 @@ fn show(handle: &AppHandle) {
 }
 
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(not(target_os = "linux"))]
+    let builder = builder.plugin(tauri_plugin_autostart::init(
+        tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+        Some(vec!["--hidden"]),
+    ));
+    builder
         // a second launch just shows the window that's already running
         .plugin(tauri_plugin_single_instance::init(|handle, _args, _cwd| show(handle)))
         .plugin(tauri_plugin_dialog::init())
@@ -471,6 +512,12 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "linux")]
             launcher::ensure(); // as an AppImage: an app launcher entry, no terminal needed
+                                // started at login: straight to the tray
+            if std::env::args().any(|a| a == "--hidden") {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.hide();
+                }
+            }
             let dir = app.path().app_config_dir()?;
             let settings = store::load(&dir);
             let wow = settings.wow.clone();
@@ -488,6 +535,11 @@ pub fn run() {
                 if let Err(e) = sync::start(app.handle(), &p) {
                     eprintln!("{e}");
                 }
+            }
+            // starting with the computer: on unless unticked, kept pointing at
+            // this copy (an AppImage may have moved)
+            if app.state::<App>().settings.lock().unwrap().start_at_login {
+                let _ = apply_login(app.handle(), true);
             }
             news::start(app.handle()); // every 10 minutes, only while WoW runs
                                        // NGM Desktop's own update: a minute after start, then every 6 hours
@@ -555,6 +607,7 @@ pub fn run() {
             set_auto_app,
             check_app,
             check_updates,
+            set_start_at_login,
             open_link
         ])
         .run(tauri::generate_context!())

@@ -42,3 +42,8 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# Windows and macOS: start with the computer (Linux writes its own login
+# entry, src/launcher.rs, because an AppImage's own path changes every run)
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+tauri-plugin-autostart = "=2.7.0"

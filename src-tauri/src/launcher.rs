@@ -1,7 +1,7 @@
 //! Linux, when run as an AppImage: an entry in the app launcher (with its
 //! icon), pointing at the AppImage, so it opens like any other app, without
 //! a terminal. Kept current at every start (the AppImage may have moved or
-//! been updated). Removed only by the player (it's a plain .desktop file).
+//! been updated). Also the login entry for "Start with my computer".
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,6 +32,44 @@ pub fn entry(appimage: &Path) -> String {
     )
 }
 
+/// The program to start: the AppImage, or the installed program. None in a
+/// development build (it would point at a build folder).
+fn program() -> Option<PathBuf> {
+    if cfg!(debug_assertions) {
+        return None;
+    }
+    std::env::var_os("APPIMAGE")
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_exe().ok())
+}
+
+/// The login entry ("Start with my computer"): starts hidden, in the tray.
+pub fn login_entry(program: &Path) -> String {
+    let exec = program.display().to_string().replace('\\', "\\\\").replace('"', "\\\"");
+    format!(
+        "[Desktop Entry]\nType=Application\nName=NGM Desktop\nComment=Keeps NGM Peon and the NGM Addon in sync\nExec=\"{exec}\" --hidden\nIcon={ID}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
+    )
+}
+
+/// Turns starting with the computer on or off. Err with why it couldn't.
+pub fn set_login(on: bool) -> Result<(), String> {
+    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
+        return Err("No home folder.".into());
+    };
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or(home.join(".config"));
+    let file = config.join(format!("autostart/{ID}.desktop"));
+    if !on {
+        let _ = fs::remove_file(&file);
+        return Ok(());
+    }
+    let Some(program) = program() else {
+        return Err("Starts with the computer only once installed from a release.".into());
+    };
+    put(&file, login_entry(&program).as_bytes()).map_err(|e| format!("Couldn't add the login entry: {e}"))
+}
+
 /// Adds or updates the launcher entry when running as an AppImage.
 pub fn ensure() {
     let Some(appimage) = std::env::var_os("APPIMAGE").map(PathBuf::from) else {
@@ -59,5 +97,7 @@ mod tests {
         assert!(e.contains("Exec=\"/home/me/Apps/NGM Desktop.AppImage\"\n"));
         assert!(e.contains("Terminal=false\n") && e.contains("Icon=app.ngmpeon.desktop\n"));
         assert!(entry(Path::new("/a\"b")).contains("Exec=\"/a\\\"b\""));
+        let l = login_entry(Path::new("/home/me/NGM Desktop.AppImage"));
+        assert!(l.contains("Exec=\"/home/me/NGM Desktop.AppImage\" --hidden\n") && l.contains("Terminal=false\n"));
     }
 }
