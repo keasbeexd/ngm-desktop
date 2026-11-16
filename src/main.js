@@ -16,7 +16,7 @@ function render(v) {
   $("wow-accounts").textContent = v.accounts.length === 0
     ? "No NGM data here yet: log in to WoW with the addon once."
     : `NGM data for ${v.accounts.length} WoW account${v.accounts.length === 1 ? "" : "s"}.`;
-  $("find").textContent = v.wow ? "Find again" : "Find it";
+  $("choose").textContent = v.wow ? "Change folder" : "Choose folder";
 
   $("connect-box").hidden = v.connected;
   $("connected-box").hidden = !v.connected;
@@ -46,7 +46,6 @@ async function run(cmd, args, button) {
   }
 }
 
-$("find").addEventListener("click", (e) => run("find_wow", {}, e.target));
 $("choose").addEventListener("click", (e) => run("choose_wow", {}, e.target));
 $("disconnect").addEventListener("click", (e) => run("disconnect", {}, e.target));
 $("connect").addEventListener("submit", (e) => {
@@ -54,4 +53,5 @@ $("connect").addEventListener("submit", (e) => {
   run("connect", { code: $("code").value }).then(() => ($("code").value = ""));
 });
 
-run("state", {});
+// first start: look for the game by itself (the button is only for changing it)
+invoke("state").then((v) => (v.wow ? render(v) : run("find_wow", {}))).catch(() => run("state", {}));

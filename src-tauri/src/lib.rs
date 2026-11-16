@@ -78,7 +78,7 @@ async fn find_wow(app: State<'_, App>) -> Result<View, String> {
             let err = set_wow(&app, Some(p)).err();
             Ok(view(&app, err).await)
         }
-        None => Ok(view(&app, Some("Couldn't find WoW: Forever. Choose its folder.".into())).await),
+        None => Ok(view(&app, Some("Couldn't find WoW: Forever on this computer. Choose its folder.".into())).await),
     }
 }
 
