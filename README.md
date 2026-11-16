@@ -31,7 +31,11 @@ its window (plain HTML, CSS and JavaScript).
   It's read as data, never run.
 - **Writes** one folder: its own data addon,
   `World of Warcraft/_forever_/Interface/AddOns/NootropicGuildManager_Peon/`.
-- **Talks** to `ngmpeon.app` only, over HTTPS.
+  If you tick **Keep NGM up to date**, it also replaces NGM's own folder with
+  new releases: only from GitHub's release page for NGM, only after checking
+  GitHub's SHA-256 for the file, only while WoW is closed.
+- **Talks** to `ngmpeon.app` over HTTPS, and to GitHub (api.github.com and
+  its downloads) only to check for and fetch NGM releases.
 - Never reads game memory, never sends input to the game, never touches
   other addons or WoW's settings.
 

@@ -54,8 +54,19 @@
     <div class="buttons"><button id="send" class="alt small">Send now</button></div>
     <p class="dim small-print">It only reads NGM's saved data and writes its own small addon folder. While WoW runs, it checks NGM Peon every few minutes and tells you about new events.</p>
   </section>
+  <section>
+    <h2><span class="n">4</span>NGM itself</h2>
+    <p id="addon-have" class="dim">NGM isn't installed in this game folder.</p>
+    <label class="check"><input type="checkbox" id="auto-addon"> Keep NGM up to date</label>
+    <p class="dim small-print">Installs new NGM releases from GitHub, checked first, only while WoW is closed. Leave this off if CurseForge, Wago or WowUp already updates your addons.</p>
+    <p id="addon-msg" class="note" hidden></p>
+    <div class="buttons"><button id="addon-check" class="alt small">Check now</button></div>
+  </section>
 </main>
 
-<footer class="dim">Closing this window keeps NGM Desktop in the tray. ngmpeon.app</footer>
+<footer class="dim">
+  <nav><a href="#" data-link="site">ngmpeon.app</a> · <a href="#" data-link="dashboard">Dashboard</a> · <a href="#" data-link="bug">Report a bug</a> · <a href="#" data-link="feature">Suggest a feature</a></nav>
+  <p>Closing this window keeps NGM Desktop in the tray. The dashboard opens from <code>/ngm dashboard</code> in your guild's Discord.</p>
+</footer>
 </body>
 </html>

@@ -21,7 +21,7 @@ pub struct News {
 }
 
 /// Is WoW running? (Only process names are looked at.)
-fn game_running() -> bool {
+pub fn game_running() -> bool {
     let Ok(mut sys) = sysinfo::System::new() else {
         return false;
     };
@@ -36,10 +36,17 @@ fn game_running() -> bool {
 /// (one sleeping thread).
 pub fn start(handle: &AppHandle) {
     let h = handle.clone();
-    std::thread::spawn(move || loop {
-        std::thread::sleep(EVERY);
-        if game_running() {
-            tauri::async_runtime::block_on(fetch(&h));
+    std::thread::spawn(move || {
+        let mut ticks: u32 = 11; // NGM's own update: soon after start, then hourly
+        loop {
+            std::thread::sleep(EVERY);
+            ticks += 1;
+            if game_running() {
+                tauri::async_runtime::block_on(fetch(&h));
+            } else if ticks >= 12 {
+                ticks = 0;
+                tauri::async_runtime::block_on(crate::update_addon(&h, false));
+            }
         }
     });
 }

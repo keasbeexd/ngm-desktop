@@ -19,6 +19,9 @@ pub struct Settings {
     /// per guild: the events this computer has seen (for "new event" notifications)
     #[serde(default)]
     pub seen_events: std::collections::HashMap<String, Vec<String>>,
+    /// keep NGM itself up to date (the player's choice; off unless ticked)
+    #[serde(default)]
+    pub auto_addon: bool,
 }
 
 pub fn load(dir: &Path) -> Settings {
