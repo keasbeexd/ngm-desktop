@@ -54,13 +54,20 @@
     <div class="buttons"><button id="send" class="alt small">Send now</button></div>
     <p class="dim small-print">It only reads NGM Addon's saved data and writes its own small addon folder. While WoW runs, it checks NGM Peon every 10 minutes and tells you about new events.</p>
   </section>
-  <section>
-    <h2><span class="n">4</span>NGM Addon</h2>
-    <p id="addon-have" class="dim">NGM Addon isn't installed in this game folder.</p>
-    <label class="check"><input type="checkbox" id="auto-addon"> Keep NGM Addon up to date</label>
-    <p class="dim small-print">Installs new NGM Addon releases from GitHub, checked first. If WoW is open, <code>/reload</code> loads the new version. Leave this off if CurseForge, Wago or WowUp already updates your addons.</p>
-    <p id="addon-msg" class="note" hidden></p>
-    <div class="buttons"><button id="addon-check" class="alt small">Check now</button></div>
+  <section class="updates">
+    <div class="checks">
+      <label class="check" title="Installs new NGM Addon releases from GitHub, checked first. If WoW is open, /reload loads the new version. Leave this off if CurseForge, Wago or WowUp already updates your addons."><input type="checkbox" id="auto-addon"> Keep NGM Addon up to date</label>
+      <label class="check" title="Installs new NGM Desktop versions from GitHub, only ones signed with NGM Desktop's own key, then restarts itself."><input type="checkbox" id="auto-app"> Keep NGM Desktop up to date</label>
+    </div>
+    <div class="versions">
+      <span id="versions" class="dim"></span>
+      <span class="buttons">
+        <button id="update-addon" class="small" hidden>Update NGM Addon</button>
+        <button id="update-app" class="small" hidden>Update NGM Desktop</button>
+        <button id="check-updates" class="alt small">Check for updates</button>
+      </span>
+    </div>
+    <p id="update-msg" class="note" hidden></p>
   </section>
 </main>
 
