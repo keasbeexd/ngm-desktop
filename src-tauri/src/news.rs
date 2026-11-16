@@ -1,6 +1,6 @@
 //! Step 3, by itself: keep NGM Peon's news (the code the dashboard's Sync
 //! tab shows for /ngm peon, per guild) in the app's addon, so any login or
-//! /reload brings it in. Checks NGM Peon every few minutes while WoW runs
+//! /reload brings it in. Checks NGM Peon every 10 minutes while WoW runs
 //! (a cheap "anything new?"), after each send, and when the app starts.
 //! A small desktop notification says when there's a new event.
 
@@ -11,7 +11,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_notification::NotificationExt;
 
-const EVERY: Duration = Duration::from_secs(5 * 60);
+const EVERY: Duration = Duration::from_secs(10 * 60);
 
 #[derive(Default)]
 pub struct News {
@@ -21,7 +21,7 @@ pub struct News {
 }
 
 /// Is WoW running? (Only process names are looked at.)
-fn game_running() -> bool {
+pub fn game_running() -> bool {
     let Ok(mut sys) = sysinfo::System::new() else {
         return false;
     };
@@ -32,14 +32,21 @@ fn game_running() -> bool {
     })
 }
 
-/// Checks every few minutes while WoW runs; nothing at all otherwise
+/// Checks every 10 minutes while WoW runs; nothing at all otherwise
 /// (one sleeping thread).
 pub fn start(handle: &AppHandle) {
     let h = handle.clone();
-    std::thread::spawn(move || loop {
-        std::thread::sleep(EVERY);
-        if game_running() {
-            tauri::async_runtime::block_on(fetch(&h));
+    std::thread::spawn(move || {
+        let mut ticks: u32 = 5; // NGM's own update: soon after start, then hourly (6 ticks)
+        loop {
+            std::thread::sleep(EVERY);
+            ticks += 1;
+            if game_running() {
+                tauri::async_runtime::block_on(fetch(&h));
+            } else if ticks >= 6 {
+                ticks = 0;
+                tauri::async_runtime::block_on(crate::update_addon(&h, false));
+            }
         }
     });
 }
@@ -62,7 +69,7 @@ pub async fn fetch(handle: &AppHandle) {
 async fn fetch_in(handle: &AppHandle, app: &crate::App) -> Option<()> {
     let key = store::key()?;
     let forever = app.settings.lock().unwrap().wow.clone()?;
-    let guilds = peon::me(&key).await.ok()?;
+    let guilds = crate::my_guilds(app, &key, false).await.ok()?;
     let mut changed = false;
     for g in guilds.iter().filter(|g| g.role.is_some()) {
         let id = format!("{}/{}", g.region, g.name);

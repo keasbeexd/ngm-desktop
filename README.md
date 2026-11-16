@@ -6,8 +6,10 @@ itself: when WoW saves NGM's data (logout or `/reload`), it sends NGM Peon
 what changed in game, and it keeps NGM Peon's news (events, Hall of Fame,
 mains and roles) ready for the addon to load.
 
-**Status:** early skeleton (finds the game, connects to NGM Peon, lives in
-the tray). Syncing comes next. Nothing to download yet.
+**Status:** working, being tested in one guild: it finds the game,
+connects to NGM Peon, sends your changes when WoW saves, brings NGM Peon's
+news back (with a notification for new events), and can keep NGM itself up
+to date. Installers and its own updates come next. Nothing to download yet.
 
 ## Building
 
@@ -21,8 +23,10 @@ npm run build    # installers for this system
 ```
 
 `src-tauri/` is the app (Rust): `wow.rs` finds the game, `peon.rs` talks to
-NGM Peon, `store.rs` keeps the settings and this computer's key. `src/` is
-its window (plain HTML, CSS and JavaScript).
+NGM Peon, `store.rs` keeps the settings and this computer's key, `saved.rs`
+reads NGM's update codes, `sync.rs` sends them, `news.rs` brings NGM Peon's
+news back, `companion.rs` writes the app's small addon, `addon.rs` updates
+NGM. `src/` is its window (plain HTML, CSS and JavaScript).
 
 ## What it touches
 
@@ -31,7 +35,11 @@ its window (plain HTML, CSS and JavaScript).
   It's read as data, never run.
 - **Writes** one folder: its own data addon,
   `World of Warcraft/_forever_/Interface/AddOns/NootropicGuildManager_Peon/`.
-- **Talks** to `ngmpeon.app` only, over HTTPS.
+  If you tick **Keep NGM up to date**, it also replaces NGM's own folder with
+  new releases: only from GitHub's release page for NGM, only after checking
+  GitHub's SHA-256 for the file; with WoW open, a `/reload` loads it.
+- **Talks** to `ngmpeon.app` over HTTPS, and to GitHub (api.github.com and
+  its downloads) only to check for and fetch NGM releases.
 - Never reads game memory, never sends input to the game, never touches
   other addons or WoW's settings.
 

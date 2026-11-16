@@ -3,6 +3,7 @@
 //! sends NGM Peon the update code NGM left (sync.rs). Bringing NGM Peon's
 //! data back comes in milestone 4.
 
+mod addon;
 mod companion;
 mod news;
 mod peon;
@@ -17,7 +18,7 @@ use std::sync::Mutex;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, State, Theme, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, State, Theme, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 
 struct App {
@@ -25,6 +26,46 @@ struct App {
     dir: PathBuf,
     sync: sync::Sync,
     news: news::News,
+    /// NGM's own updates: what's installed, the newest, and how the last try went
+    addon: Mutex<AddonState>,
+    /// the guilds this account is linked in, and when NGM Peon said so
+    guilds: Mutex<Option<(std::time::Instant, Vec<peon::Guild>)>>,
+}
+
+/// How long the guild list is trusted before asking NGM Peon again (the
+/// window redraws often; NGM Peon allows 120 requests an hour per computer).
+const GUILDS_FOR: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
+/// The guilds this account is linked in: remembered for a while, asked again
+/// when `fresh` (after connecting) or when old.
+async fn my_guilds(app: &App, key: &str, fresh: bool) -> Result<Vec<peon::Guild>, peon::Error> {
+    if !fresh {
+        if let Some((at, g)) = app.guilds.lock().unwrap().as_ref() {
+            if at.elapsed() < GUILDS_FOR {
+                return Ok(g.clone());
+            }
+        }
+    }
+    let g = peon::me(key).await?;
+    *app.guilds.lock().unwrap() = Some((std::time::Instant::now(), g.clone()));
+    Ok(g)
+}
+
+#[derive(Default, Clone, Serialize)]
+struct AddonState {
+    latest: Option<String>,
+    message: Option<String>,
+}
+
+/// What the window shows about NGM itself.
+#[derive(Serialize)]
+struct AddonView {
+    installed: Option<String>,
+    latest: Option<String>,
+    auto: bool,
+    message: Option<String>,
+    /// a newer release than the one installed
+    behind: bool,
 }
 
 /// Everything the window shows.
@@ -42,6 +83,7 @@ struct View {
     helper_new: bool,
     /// a passing remark (not an error)
     note: Option<String>,
+    addon: AddonView,
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
@@ -56,9 +98,22 @@ async fn view(app: &App, error: Option<String>) -> View {
         last: app.sync.last.lock().unwrap().clone(),
         helper_new: *app.sync.helper_new.lock().unwrap(),
         note: None,
+        addon: {
+            let a = app.addon.lock().unwrap().clone();
+            let s = app.settings.lock().unwrap();
+            let installed = s.wow.as_deref().and_then(addon::installed);
+            let behind = matches!((&a.latest, &installed), (Some(l), Some(i)) if addon::newer(l, i));
+            AddonView {
+                installed,
+                behind,
+                latest: a.latest,
+                auto: s.auto_addon,
+                message: a.message,
+            }
+        },
     };
     if let Some(key) = store::key() {
-        match peon::me(&key).await {
+        match my_guilds(app, &key, false).await {
             Ok(g) => {
                 v.connected = true;
                 v.guilds = g;
@@ -145,6 +200,7 @@ async fn connect(handle: AppHandle, app: State<'_, App>, code: String) -> Result
         Ok(key) => {
             let err = store::set_key(&key).err();
             if err.is_none() {
+                let _ = my_guilds(&app, &key, true).await; // a new account: ask afresh
                 sync::run(&handle).await; // anything already waiting
             }
             Ok(view(&app, err).await)
@@ -167,10 +223,95 @@ async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String
     Ok(v)
 }
 
+/// Checks GitHub for a newer NGM and, when `now` or the box is ticked,
+/// installs it (only while WoW is closed).
+async fn update_addon(handle: &AppHandle, now: bool) {
+    let app = handle.state::<App>();
+    let (forever, auto) = {
+        let s = app.settings.lock().unwrap();
+        (s.wow.clone(), s.auto_addon)
+    };
+    let Some(forever) = forever else { return };
+    let set = |latest: Option<String>, message: Option<String>| {
+        let mut a = app.addon.lock().unwrap();
+        if latest.is_some() {
+            a.latest = latest;
+        }
+        a.message = message;
+    };
+    let rel = match addon::latest().await {
+        Ok(r) => r,
+        Err(e) => return set(None, Some(e)),
+    };
+    let have = addon::installed(&forever);
+    let behind = have.as_deref().map(|h| addon::newer(&rel.version, h)).unwrap_or(true);
+    if !behind || !(now || auto) {
+        return set(Some(rel.version), None);
+    }
+    // WoW may be running: addons load their files at login and /reload, so
+    // the new version takes over then (a changed file list: restart once)
+    let running = news::game_running();
+    let result = match addon::download(&rel).await {
+        Ok(bytes) => addon::install(&forever, &bytes),
+        Err(e) => Err(e),
+    };
+    match result {
+        Ok(files_changed) => {
+            let next = match (running, files_changed) {
+                (false, _) => "",
+                (true, false) => " Type /reload in WoW to load it.",
+                (true, true) => " Restart WoW once to load it (its file list changed).",
+            };
+            set(
+                Some(rel.version.clone()),
+                Some(format!("Updated NGM to {}.{next}", rel.version)),
+            );
+            let _ = companion::ensure(&forever); // its game version follows NGM's
+        }
+        Err(e) => set(Some(rel.version), Some(e)),
+    }
+    let _ = handle.emit("synced", ());
+}
+
+#[tauri::command]
+async fn set_auto_addon(handle: AppHandle, app: State<'_, App>, on: bool) -> Result<View, String> {
+    {
+        let mut s = app.settings.lock().unwrap();
+        s.auto_addon = on;
+        store::save(&app.dir, &s)?;
+    }
+    if on {
+        update_addon(&handle, false).await;
+    }
+    Ok(view(&app, None).await)
+}
+
+/// "Check now" / "Update now".
+#[tauri::command]
+async fn check_addon(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
+    update_addon(&handle, true).await;
+    Ok(view(&app, None).await)
+}
+
+/// The links in the window: fixed addresses only, opened in the browser.
+#[tauri::command]
+fn open_link(handle: AppHandle, which: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = match which.as_str() {
+        "site" => "https://ngmpeon.app",
+        "dashboard" => "https://ngmpeon.app/dashboard",
+        "bug" => "https://github.com/keasbeexd/nootropic-guild-manager/issues/new?template=bug.yml",
+        "feature" => "https://github.com/keasbeexd/nootropic-guild-manager/issues/new?template=feature.yml",
+        _ => return Err("Unknown link".into()),
+    };
+    handle.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
 /// Forgets this computer's key here (remove it on the dashboard too).
 #[tauri::command]
 async fn disconnect(app: State<'_, App>) -> Result<View, String> {
     store::forget_key();
+    *app.guilds.lock().unwrap() = None;
     Ok(view(&app, None).await)
 }
 
@@ -233,6 +374,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|handle, _args, _cwd| show(handle)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
             let settings = store::load(&dir);
@@ -242,13 +384,15 @@ pub fn run() {
                 dir,
                 sync: sync::Sync::default(),
                 news: news::News::default(),
+                addon: Mutex::new(AddonState::default()),
+                guilds: Mutex::new(None),
             });
             if let Some(p) = wow {
                 if let Err(e) = sync::start(app.handle(), &p) {
                     eprintln!("{e}");
                 }
             }
-            news::start(app.handle()); // every few minutes, only while WoW runs
+            news::start(app.handle()); // every 10 minutes, only while WoW runs
 
             let open = MenuItem::with_id(app, "open", "Open NGM Desktop", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -294,7 +438,15 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            state, find_wow, choose_wow, connect, sync_now, disconnect
+            state,
+            find_wow,
+            choose_wow,
+            connect,
+            sync_now,
+            disconnect,
+            set_auto_addon,
+            check_addon,
+            open_link
         ])
         .run(tauri::generate_context!())
         .expect("NGM Desktop couldn't start");

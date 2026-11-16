@@ -34,6 +34,17 @@ function render(v) {
     }));
   }
 
+  const a = v.addon;
+  $("addon-have").textContent = !a.installed
+    ? "NGM isn't installed in this game folder."
+    : a.behind
+      ? `Installed: NGM ${a.installed}. Newest: ${a.latest}.`
+      : `Installed: NGM ${a.installed}${a.latest ? " (up to date)" : ""}.`;
+  $("auto-addon").checked = a.auto;
+  $("addon-msg").hidden = !a.message;
+  $("addon-msg").textContent = a.message ?? "";
+  $("addon-check").textContent = a.behind ? "Update now" : "Check now";
+
   $("connect-box").hidden = v.connected;
   $("connected-box").hidden = !v.connected;
   const list = $("guilds");
@@ -65,6 +76,12 @@ async function run(cmd, args, button) {
 $("choose").addEventListener("click", (e) => run("choose_wow", {}, e.target));
 $("disconnect").addEventListener("click", (e) => run("disconnect", {}, e.target));
 $("send").addEventListener("click", (e) => run("sync_now", {}, e.target));
+$("auto-addon").addEventListener("change", (e) => run("set_auto_addon", { on: e.target.checked }));
+$("addon-check").addEventListener("click", (e) => run("check_addon", {}, e.target));
+document.querySelectorAll("[data-link]").forEach((l) => l.addEventListener("click", (e) => {
+  e.preventDefault();
+  invoke("open_link", { which: l.dataset.link });
+}));
 // a send that happened by itself (after a logout): show it
 window.__TAURI__.event.listen("synced", () => run("state", {}));
 $("connect").addEventListener("submit", (e) => {
