@@ -34,7 +34,7 @@ fn interface(forever: &Path) -> String {
 
 fn toc(forever: &Path) -> String {
     format!(
-        "## Interface: {}\n## Title: NGM Peon |cff9d9d9d(desktop app)|r\n## Notes: Written by NGM Desktop: tells NGM the app is here and brings NGM Peon's news. Don't edit; the app rewrites it.\n## Author: keasbeexd\n## Version: {}\n## Dependencies: NootropicGuildManager\n\nData.lua\n",
+        "## Interface: {}\n## Title: NGM Desktop\n## Notes: Written by the NGM Desktop app: tells NGM it's here and brings NGM Peon's news. Don't edit; the app rewrites it.\n## Author: keasbeexd\n## Version: {}\n## Dependencies: NootropicGuildManager\n\nData.lua\n",
         interface(forever),
         env!("CARGO_PKG_VERSION")
     )

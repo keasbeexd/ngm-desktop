@@ -125,18 +125,31 @@ pub async fn download(r: &Release) -> Result<Vec<u8>, String> {
     if !resp.status().is_success() {
         return Err(format!("GitHub answered {} for the NGM download.", resp.status()));
     }
-    let bytes = resp
-        .bytes()
+    let wrong = || "The NGM download isn't the size GitHub lists; not installing it.".to_string();
+    if resp.content_length().is_some_and(|n| n != r.size) {
+        return Err(wrong());
+    }
+    // read it in pieces, stopping as soon as it's bigger than it should be
+    let mut resp = resp;
+    let mut bytes: Vec<u8> = Vec::with_capacity(r.size as usize);
+    while let Some(chunk) = resp
+        .chunk()
         .await
-        .map_err(|_| "The NGM download was cut short.".to_string())?;
-    if bytes.len() as u64 != r.size || bytes.len() as u64 > MAX_ZIP {
-        return Err("The NGM download isn't the size GitHub lists; not installing it.".into());
+        .map_err(|_| "The NGM download was cut short.".to_string())?
+    {
+        bytes.extend_from_slice(&chunk);
+        if bytes.len() as u64 > r.size {
+            return Err(wrong());
+        }
+    }
+    if bytes.len() as u64 != r.size {
+        return Err(wrong());
     }
     let sum: String = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
     if sum != r.sha256 {
         return Err("The NGM download doesn't match GitHub's checksum; not installing it.".into());
     }
-    Ok(bytes.to_vec())
+    Ok(bytes)
 }
 
 /// Unpacks only `NootropicGuildManager/...` into `to`, refusing anything
@@ -155,8 +168,8 @@ fn unpack(zip_bytes: &[u8], to: &Path) -> Result<(), String> {
             return Err(bad("has a file in an odd place"));
         };
         let Ok(rest) = path.strip_prefix(FOLDER) else { continue }; // only NGM's folder
-        total += f.size();
-        if total > MAX_UNPACKED {
+                                                                    // the size a zip claims can lie: what's really unpacked is counted below
+        if total + f.size() > MAX_UNPACKED {
             return Err(bad("unpacks too big"));
         }
         let out = to.join(rest);
@@ -172,9 +185,13 @@ fn unpack(zip_bytes: &[u8], to: &Path) -> Result<(), String> {
         }
         let mut data = Vec::new();
         f.by_ref()
-            .take(MAX_UNPACKED)
+            .take(MAX_UNPACKED - total + 1)
             .read_to_end(&mut data)
             .map_err(|_| bad("is damaged"))?;
+        total += data.len() as u64;
+        if total > MAX_UNPACKED {
+            return Err(bad("unpacks too big"));
+        }
         fs::write(&out, data).map_err(|e| e.to_string())?;
     }
     if !any_toc {
@@ -295,6 +312,15 @@ mod tests {
         assert!(install(&root, b"not a zip").is_err());
         assert_eq!(installed(&root).as_deref(), Some("3.0.8"));
         assert!(!root.join("evil.lua").exists());
+        // too big once unpacked (it compresses to almost nothing): refused, NGM untouched
+        let zeros = "\0".repeat((MAX_UNPACKED + 1) as usize);
+        let bomb = zip_of(&[
+            ("NootropicGuildManager/NootropicGuildManager.toc", "## Version: 9\n"),
+            ("NootropicGuildManager/big.bin", &zeros),
+        ]);
+        assert!(bomb.len() < 1_000_000);
+        assert!(install(&root, &bomb).unwrap_err().contains("too big"));
+        assert_eq!(installed(&root).as_deref(), Some("3.0.8"));
         let _ = fs::remove_dir_all(&root);
     }
 }
