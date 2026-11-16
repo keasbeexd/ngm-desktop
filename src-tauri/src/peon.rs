@@ -151,3 +151,37 @@ pub async fn update(key: &str, code: &str) -> Result<Sent, Error> {
         .await
         .map_err(|_| Error::Other("NGM Peon's answer didn't make sense.".into()))
 }
+
+/// Step 3: NGM Peon's code for the addon, for one guild. None when it hasn't
+/// changed since `etag` (NGM Peon answers 304).
+pub async fn data(key: &str, region: &str, guild: &str, etag: Option<&str>) -> Result<Option<(String, String)>, Error> {
+    #[derive(Deserialize)]
+    struct Data {
+        code: String,
+    }
+    let mut req = client()?
+        .get(format!("{}/data", base()))
+        .query(&[("region", region), ("guild", guild)])
+        .bearer_auth(key);
+    if let Some(e) = etag {
+        req = req.header("if-none-match", e);
+    }
+    let r = req.send().await.map_err(offline)?;
+    if r.status() == reqwest::StatusCode::NOT_MODIFIED {
+        return Ok(None);
+    }
+    if !r.status().is_success() {
+        return Err(fail(r).await);
+    }
+    let etag = r
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let d: Data = r
+        .json()
+        .await
+        .map_err(|_| Error::Other("NGM Peon's answer didn't make sense.".into()))?;
+    Ok(Some((d.code, etag)))
+}

@@ -126,6 +126,8 @@ pub async fn run(handle: &AppHandle) -> bool {
         *app.sync.last.lock().unwrap() = Some(last);
         let _ = handle.emit("synced", ());
     }
+    // NGM Peon's news, fresh for the next login (also when nothing was sent)
+    crate::news::fetch(handle).await;
     sent
 }
 
