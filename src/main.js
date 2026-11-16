@@ -20,6 +20,8 @@ function render(v) {
   $("choose").textContent = v.wow ? "Change folder" : "Choose folder";
 
   $("helper-new").hidden = !v.helper_new;
+  $("note").hidden = !v.note;
+  $("note").textContent = v.note ?? "";
   $("send").hidden = !(v.connected && v.wow);
   if (v.last) {
     const when = new Date(v.last.at * 1000).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });

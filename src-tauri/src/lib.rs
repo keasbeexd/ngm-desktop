@@ -38,6 +38,8 @@ struct View {
     last: Option<sync::Last>,
     /// the app's addon was just added: restart WoW once
     helper_new: bool,
+    /// a passing remark (not an error)
+    note: Option<String>,
 }
 
 async fn view(app: &App, error: Option<String>) -> View {
@@ -51,6 +53,7 @@ async fn view(app: &App, error: Option<String>) -> View {
         error,
         last: app.sync.last.lock().unwrap().clone(),
         helper_new: *app.sync.helper_new.lock().unwrap(),
+        note: None,
     };
     if let Some(key) = store::key() {
         match peon::me(&key).await {
@@ -151,8 +154,15 @@ async fn connect(handle: AppHandle, app: State<'_, App>, code: String) -> Result
 /// Sends whatever NGM left that wasn't sent yet.
 #[tauri::command]
 async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String> {
-    sync::run(&handle).await;
-    Ok(view(&app, None).await)
+    let sent = sync::run(&handle).await;
+    let mut v = view(&app, None).await;
+    if !sent {
+        v.note = Some(
+            "Nothing new to send. WoW saves NGM's update when you log out or /reload, so do one of those in game."
+                .into(),
+        );
+    }
+    Ok(v)
 }
 
 /// Forgets this computer's key here (remove it on the dashboard too).

@@ -109,21 +109,24 @@ pub fn start(handle: &AppHandle, forever: &Path) -> Result<(), String> {
 }
 
 /// Sends every code not sent yet. Nothing without a key or a game folder.
-pub async fn run(handle: &AppHandle) {
+/// True when something was sent (or tried).
+pub async fn run(handle: &AppHandle) -> bool {
     let app = handle.state::<crate::App>();
     {
         let mut running = app.sync.running.lock().unwrap();
         if *running {
-            return;
+            return true; // already sending
         }
         *running = true;
     }
     let result = send(&app).await;
     *app.sync.running.lock().unwrap() = false;
+    let sent = result.is_some();
     if let Some(last) = result {
         *app.sync.last.lock().unwrap() = Some(last);
         let _ = handle.emit("synced", ());
     }
+    sent
 }
 
 async fn send(app: &crate::App) -> Option<Last> {
