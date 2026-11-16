@@ -1,0 +1,5 @@
+[toolchain]
+# at least two weeks old when chosen (2026-11-16)
+channel = "1.99.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

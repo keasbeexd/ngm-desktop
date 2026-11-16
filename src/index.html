@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NGM Desktop</title>
+<link rel="stylesheet" href="style.css">
+<script src="main.js" defer></script>
+</head>
+<body>
+<header>
+  <img src="banner.png" alt="" width="44" height="44">
+  <div><h1>NGM Desktop</h1><p class="dim">Keeps NGM Peon and the NGM addon in sync</p></div>
+</header>
+
+<main>
+  <p id="error" class="bad" hidden></p>
+
+  <section>
+    <h2><span class="n">1</span>Your game</h2>
+    <p id="wow-none">Where WoW: Forever lives on this computer.</p>
+    <p id="wow-path" class="path" hidden></p>
+    <p id="wow-accounts" class="dim" hidden></p>
+    <div class="buttons">
+      <button id="find">Find it</button>
+      <button id="choose" class="alt">Choose folder</button>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>NGM Peon</h2>
+    <div id="connect-box">
+      <p>In your guild's Discord, type <code>/ngm dashboard</code>. Under <b>Automatic sync</b>, press <b>Get a code</b>, then type it here.</p>
+      <form id="connect">
+        <input id="code" autocomplete="off" spellcheck="false" maxlength="9" placeholder="ABCD-EFGH" aria-label="Code from the dashboard">
+        <button>Connect</button>
+      </form>
+    </div>
+    <div id="connected-box" hidden>
+      <p><span class="ok">Connected.</span> Your guilds:</p>
+      <ul id="guilds"></ul>
+      <p class="dim">Not seeing a guild? Type <code>/ngm link</code> in its Discord.</p>
+      <div class="buttons"><button id="disconnect" class="alt small">Disconnect this computer</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Syncing</h2>
+    <p class="dim">Coming next: when you log out of WoW or <code>/reload</code>, this app sends your changes to NGM Peon and brings its news back for the addon. It only reads NGM's saved data and writes its own small addon folder.</p>
+  </section>
+</main>
+
+<footer class="dim">Closing this window keeps NGM Desktop in the tray. ngmpeon.app</footer>
+</body>
+</html>

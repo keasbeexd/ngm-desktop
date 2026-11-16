@@ -1,0 +1,34 @@
+[package]
+name = "ngm-desktop"
+version = "0.1.0"
+description = "NGM Desktop: the desktop app for NGM Peon and the Nootropic Guild Manager addon"
+authors = ["Marc @keasbeexd"]
+license-file = "../LICENSE"
+repository = "https://github.com/keasbeexd/ngm-desktop"
+edition = "2021"
+publish = false
+
+[lib]
+name = "ngm_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# Exact versions, each at least two weeks old when chosen (2026-11-16).
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.5", features = ["tray-icon"] }
+tauri-plugin-single-instance = "=2.5.5"
+tauri-plugin-dialog = "=2.8.4"
+keyring = "=4.2.0"
+# the system's own TLS and certificates (Schannel, Secure Transport, OpenSSL)
+reqwest = { version = "=0.13.5", default-features = false, features = ["default-tls", "json", "http2"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
