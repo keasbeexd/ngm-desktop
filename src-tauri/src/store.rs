@@ -26,6 +26,9 @@ pub struct Settings {
     /// keep NGM Desktop itself up to date (on unless the player unticks it)
     #[serde(default = "yes")]
     pub auto_app: bool,
+    /// start with the computer, into the tray (on unless the player unticks it)
+    #[serde(default = "yes")]
+    pub start_at_login: bool,
 }
 
 fn yes() -> bool {
@@ -40,6 +43,7 @@ impl Default for Settings {
             seen_events: Default::default(),
             auto_addon: false,
             auto_app: true,
+            start_at_login: true,
         }
     }
 }

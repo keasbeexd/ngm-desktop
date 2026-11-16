@@ -44,6 +44,7 @@ function render(v) {
   $("update-app").hidden = !v.app.latest;
   $("auto-addon").checked = a.auto;
   $("auto-app").checked = v.app.auto;
+  $("start-login").checked = v.app.start_at_login;
   const notes = [a.message, v.app.message].filter(Boolean);
   $("update-msg").hidden = notes.length === 0;
   $("update-msg").textContent = notes.join(" ");
@@ -81,6 +82,7 @@ $("disconnect").addEventListener("click", (e) => run("disconnect", {}, e.target)
 $("send").addEventListener("click", (e) => run("sync_now", {}, e.target));
 $("auto-addon").addEventListener("change", (e) => run("set_auto_addon", { on: e.target.checked }));
 $("auto-app").addEventListener("change", (e) => run("set_auto_app", { on: e.target.checked }));
+$("start-login").addEventListener("change", (e) => run("set_start_at_login", { on: e.target.checked }));
 $("check-updates").addEventListener("click", (e) => run("check_updates", {}, e.target));
 $("update-addon").addEventListener("click", (e) => run("check_addon", {}, e.target));
 $("update-app").addEventListener("click", (e) => run("check_app", {}, e.target));
