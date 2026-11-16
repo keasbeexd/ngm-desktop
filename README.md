@@ -43,4 +43,7 @@ built from it in GitHub Actions with build attestations.
 [PolyForm Shield 1.0.0](LICENSE): free to use, read, change and share, but
 not to build a competing product.
 
+The fonts in `src/fonts` (Cinzel and Rubik) are under the SIL Open Font
+License (their own license files are next to them).
+
 Not affiliated with Blizzard Entertainment or Discord.
