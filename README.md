@@ -6,8 +6,10 @@ itself: when WoW saves NGM's data (logout or `/reload`), it sends NGM Peon
 what changed in game, and it keeps NGM Peon's news (events, Hall of Fame,
 mains and roles) ready for the addon to load.
 
-**Status:** early skeleton (finds the game, connects to NGM Peon, lives in
-the tray). Syncing comes next. Nothing to download yet.
+**Status:** working, being tested in one guild: it finds the game,
+connects to NGM Peon, sends your changes when WoW saves, brings NGM Peon's
+news back (with a notification for new events), and can keep NGM itself up
+to date. Installers and its own updates come next. Nothing to download yet.
 
 ## Building
 
@@ -21,8 +23,10 @@ npm run build    # installers for this system
 ```
 
 `src-tauri/` is the app (Rust): `wow.rs` finds the game, `peon.rs` talks to
-NGM Peon, `store.rs` keeps the settings and this computer's key. `src/` is
-its window (plain HTML, CSS and JavaScript).
+NGM Peon, `store.rs` keeps the settings and this computer's key, `saved.rs`
+reads NGM's update codes, `sync.rs` sends them, `news.rs` brings NGM Peon's
+news back, `companion.rs` writes the app's small addon, `addon.rs` updates
+NGM. `src/` is its window (plain HTML, CSS and JavaScript).
 
 ## What it touches
 
