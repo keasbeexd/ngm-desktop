@@ -10,6 +10,7 @@ function render(v) {
   $("error").textContent = v.error ?? "";
 
   $("wow-none").hidden = !!v.wow;
+  $("wow-label").hidden = !v.wow;
   $("wow-path").hidden = !v.wow;
   $("wow-path").textContent = v.wow ?? "";
   $("wow-accounts").hidden = !v.wow;
