@@ -6,10 +6,10 @@ itself: when WoW saves NGM Addon's data (logout or `/reload`), it sends NGM Peon
 what changed in game, and it keeps NGM Peon's news (events, Hall of Fame,
 mains and roles) ready for the NGM Addon to load.
 
-**Status:** working, being tested in one guild: it finds the game,
-connects to NGM Peon, sends your changes when WoW saves, brings NGM Peon's
-news back (with a notification for new events), and can keep NGM Addon up
-to date. Installers and its own updates come next. Nothing to download yet.
+**Download:** [the latest release](https://github.com/keasbeexd/ngm-desktop/releases/latest)
+for Windows, macOS and Linux (AppImage or .deb). It updates itself after that.
+Connect it on NGM Peon's dashboard (Sync tab, or My settings); it needs the
+NGM Addon 3.0.8 or newer. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Building
 
