@@ -1,7 +1,9 @@
 //! NGM Desktop. Lives in the tray; its window finds WoW: Forever and
-//! connects this computer to NGM Peon. When the game saves NGM Addon's data, it
-//! sends NGM Peon the update code NGM Addon left (sync.rs). Bringing NGM Peon's
-//! data back comes in milestone 4.
+//! connects this computer to NGM Peon. When the game saves the NGM Addon's
+//! data, it sends NGM Peon the update code the NGM Addon left (sync.rs), and
+//! it keeps NGM Peon's news in its own small addon for the next login
+//! (news.rs, companion.rs). It can keep the NGM Addon (addon.rs) and itself
+//! up to date.
 
 mod addon;
 mod companion;
