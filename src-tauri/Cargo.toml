@@ -1,6 +1,6 @@
 [package]
 name = "ngm-desktop"
-version = "0.2.3"
+version = "0.2.4"
 description = "NGM Desktop: the desktop app for NGM Peon and the Nootropic Guild Manager addon"
 authors = ["Marc @keasbeexd"]
 license-file = "../LICENSE"

@@ -2,6 +2,11 @@
 
 Every release is on the [releases page](https://github.com/keasbeexd/ngm-desktop/releases), for Windows, macOS and Linux. The app updates itself (Keep NGM Desktop up to date), so there's nothing to download again.
 
+
+## 0.2.4 · 16 November 2026
+
+- **Installer text names the NGM Addon.** The installer's descriptions say NGM Addon, like the rest of the app.
+
 ## 0.2.3 · 16 November 2026
 
 - **Signed for macOS.** The Mac app is signed and notarized by Apple, so macOS opens it without the "unidentified developer" warning.
