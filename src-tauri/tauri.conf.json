@@ -34,8 +34,8 @@
       "deb"
     ],
     "category": "Utility",
-    "shortDescription": "Keeps NGM Peon and the NGM addon in sync",
-    "longDescription": "The desktop app for NGM Peon (ngmpeon.app) and the Nootropic Guild Manager addon for WoW: Forever. When WoW saves NGM's data, it sends NGM Peon what changed in game, and keeps NGM Peon's news ready for the addon.",
+    "shortDescription": "Keeps NGM Peon and the NGM Addon in sync",
+    "longDescription": "The desktop app for NGM Peon (ngmpeon.app) and the NGM Addon (Nootropic Guild Manager) for WoW: Forever. When WoW saves the NGM Addon's data, it sends NGM Peon what changed in game, and keeps NGM Peon's news ready for the NGM Addon.",
     "publisher": "keasbeexd",
     "homepage": "https://ngmpeon.app",
     "copyright": "Copyright (c) 2026 Marc @keasbeexd",
