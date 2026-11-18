@@ -118,7 +118,7 @@ fn announce(handle: &AppHandle, app: &crate::App, guild: &str, code: &str) {
                 .notification()
                 .builder()
                 .title(format!("New {what}: {title}"))
-                .body("In WoW: Reload and Sync (or /reload) to see it in NGM Addon's Upcoming Events.")
+                .body("In WoW: Reload and Sync (or /reload) to see it in the NGM Addon's Upcoming Events.")
                 .show();
         }
     }

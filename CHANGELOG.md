@@ -3,6 +3,11 @@
 Every release is on the [releases page](https://github.com/keasbeexd/ngm-desktop/releases), for Windows, macOS and Linux. The app updates itself (Keep NGM Desktop up to date), so there's nothing to download again.
 
 
+## 0.2.5 · 18 November 2026
+
+- **The same links as ngmpeon.app** at the bottom of the window: What's new, Privacy, Terms, Support on Ko-fi, GitHub Sponsors, and who made it, next to the dashboard and the bug and feature forms.
+- Wording: it says "the NGM Addon" everywhere, including the note on its small addon in WoW's AddOns list.
+
 ## 0.2.4 · 16 November 2026
 
 - **Installer text names the NGM Addon.** The installer's descriptions say NGM Addon, like the rest of the app.

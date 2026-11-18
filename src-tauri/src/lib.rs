@@ -250,7 +250,7 @@ async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String
     let mut v = view(&app, None).await;
     if !sent {
         v.note = Some(
-            "Nothing new to send. WoW saves NGM Addon's update when you log out or /reload, so do one of those in game."
+            "Nothing new to send. WoW saves the NGM Addon's update when you log out or /reload, so do one of those in game."
                 .into(),
         );
     }
@@ -429,6 +429,12 @@ fn open_link(handle: AppHandle, which: String) -> Result<(), String> {
     let url = match which.as_str() {
         "site" => "https://ngmpeon.app",
         "dashboard" => "https://ngmpeon.app/dashboard",
+        "whatsnew" => "https://ngmpeon.app/changelog#desktop",
+        "privacy" => "https://ngmpeon.app/privacy",
+        "terms" => "https://ngmpeon.app/terms",
+        "kofi" => "https://ko-fi.com/keasbeexd",
+        "sponsors" => "https://github.com/sponsors/keasbeexd",
+        "maker" => "https://keasbeexd.github.io/",
         "bug" => "https://github.com/keasbeexd/nootropic-guild-manager/issues/new?template=bug.yml",
         "feature" => "https://github.com/keasbeexd/nootropic-guild-manager/issues/new?template=feature.yml",
         _ => return Err("Unknown link".into()),
