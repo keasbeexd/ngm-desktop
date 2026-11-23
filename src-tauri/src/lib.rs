@@ -257,6 +257,22 @@ async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String
     Ok(v)
 }
 
+/// The tray's Send now: the window's button, plus NGM Peon's news, with a
+/// desktop notification saying how it went (the window may be closed).
+fn tray_send(handle: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_notification::NotificationExt;
+        let sent = sync::run(&handle).await;
+        news::fetch(&handle).await;
+        let body = if sent {
+            "Sent to NGM Peon. Its news is ready for your next login or /reload."
+        } else {
+            "Nothing new to send. WoW saves the NGM Addon's update when you log out or /reload, so do one of those in game."
+        };
+        let _ = handle.notification().builder().title("NGM Desktop").body(body).show();
+    });
+}
+
 /// Checks GitHub for a newer NGM Addon and, when `now` or the box is ticked,
 /// installs it (only while WoW is closed).
 async fn update_addon(handle: &AppHandle, now: bool) {
@@ -561,8 +577,9 @@ pub fn run() {
             });
 
             let open = MenuItem::with_id(app, "open", "Open NGM Desktop", true, None::<&str>)?;
+            let send = MenuItem::with_id(app, "send", "Send now", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &quit])?;
+            let menu = Menu::with_items(app, &[&open, &send, &quit])?;
             TrayIconBuilder::with_id("tray")
                 .icon(tray_icon(system_theme(app.handle())))
                 .icon_as_template(true)
@@ -571,6 +588,7 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|handle, event| match event.id.as_ref() {
                     "open" => show(handle),
+                    "send" => tray_send(handle.clone()),
                     "quit" => handle.exit(0),
                     _ => {}
                 })

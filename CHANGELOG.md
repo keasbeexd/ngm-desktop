@@ -3,6 +3,10 @@
 Every release is on the [releases page](https://github.com/keasbeexd/ngm-desktop/releases), for Windows, macOS and Linux. The app updates itself (Keep NGM Desktop up to date), so there's nothing to download again.
 
 
+## 0.2.6 · 23 November 2026
+
+- **Send now in the tray menu.** Right-click NGM Desktop's tray icon and pick Send now: it sends what changed in game and brings NGM Peon's news, then a notification says how it went, without opening the window.
+
 ## 0.2.5 · 18 November 2026
 
 - **The same links as ngmpeon.app** at the bottom of the window: What's new, Privacy, Terms, Support on Ko-fi, GitHub Sponsors, and who made it, next to the dashboard and the bug and feature forms.
