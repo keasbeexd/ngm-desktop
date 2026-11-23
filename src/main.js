@@ -34,6 +34,17 @@ function render(v) {
     }));
   }
 
+  // NGM Peon's news: when it was last checked, and what went wrong if it did
+  $("news").hidden = !v.news;
+  if (v.news) {
+    const when = new Date(v.news.at * 1000).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    const n = v.news.events;
+    $("news").textContent = v.news.error
+      ? `News check ${when} didn't go through: ${v.news.error}`
+      : `News checked ${when}: ${n === 0 ? "no upcoming events" : `${n} upcoming event${n === 1 ? "" : "s"}`}.`;
+    $("news").className = v.news.error ? "bad" : "dim";
+  }
+
   // Updates: one line of versions, one button, a note only when there's news
   const a = v.addon;
   const addonText = !a.installed ? "NGM Addon not found" : `NGM Addon ${a.installed}${a.behind ? ` (${a.latest} is out)` : ""}`;
@@ -57,7 +68,7 @@ function render(v) {
     li.textContent = `<${g.name}> (${g.region.toUpperCase()})${g.role ? `, as ${ROLE[g.role] ?? g.role}` : ", no linked characters there now"}`;
     return li;
   }));
-  if (v.connected && v.guilds.length === 0) {
+  if (v.connected && v.guilds.length === 0 && !v.error) {
     const li = document.createElement("li");
     li.textContent = "None yet";
     list.append(li);

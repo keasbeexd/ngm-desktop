@@ -1,7 +1,7 @@
 {
   "name": "ngm-desktop",
   "private": true,
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "NGM Desktop: the desktop app for NGM Peon and the Nootropic Guild Manager addon",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
