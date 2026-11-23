@@ -6,7 +6,8 @@ Every release is on the [releases page](https://github.com/keasbeexd/ngm-desktop
 ## 0.2.6 · 23 November 2026
 
 - **Send now in the tray menu.** Right-click NGM Desktop's tray icon and pick Send now: it sends what changed in game and brings NGM Peon's news, then a notification says how it went, without opening the window.
-- **Events no longer go missing.** If the system's secure store was slow or locked, NGM Desktop could get stuck and stop bringing NGM Peon's news (new events among it) until it restarted. It now waits 10 seconds at most, and Send now always checks the news.
+- **Events no longer go missing (Linux).** Reading the NGM Addon's saved data counted as the game changing it, so NGM Desktop sent again every few seconds, and NGM Peon soon refused its news checks as too many. New events then never reached the game. It now reacts only when the game writes the file.
+- **It can't get stuck.** If the system's secure store is slow or locked, NGM Desktop waits 10 seconds at most instead of stopping until it restarts, and Send now always checks NGM Peon's news.
 - **When the news was last checked.** Under Syncing, the window shows the last check and how many upcoming events it brought. If a check fails, it says why.
 
 ## 0.2.5 · 18 November 2026

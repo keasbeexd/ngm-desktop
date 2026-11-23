@@ -6,7 +6,8 @@
 
 use crate::busy::Busy;
 use crate::{companion, peon, saved, store};
-use notify::{RecursiveMode, Watcher};
+use notify::event::{AccessKind, AccessMode, ModifyKind};
+use notify::{EventKind, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -72,6 +73,19 @@ fn describe(s: &peon::Sent) -> String {
     line
 }
 
+/// Did this event write the file? Linux also reports opening and reading it,
+/// and the app reads it itself: counting those made every send start the
+/// next one, a few seconds apart, until NGM Peon refused (too many requests).
+fn written(kind: &EventKind) -> bool {
+    match kind {
+        EventKind::Create(_) => true,
+        EventKind::Modify(ModifyKind::Metadata(_)) => false,
+        EventKind::Modify(_) => true,
+        EventKind::Access(AccessKind::Close(AccessMode::Write)) => true,
+        _ => false,
+    }
+}
+
 /// Watches this game folder (replacing any earlier watch) and adds the
 /// app's addon. Sends whatever's waiting right away.
 pub fn start(handle: &AppHandle, forever: &Path) -> Result<(), String> {
@@ -83,9 +97,10 @@ pub fn start(handle: &AppHandle, forever: &Path) -> Result<(), String> {
     let (tx, rx) = mpsc::channel::<()>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(e) = res {
-            if e.paths
-                .iter()
-                .any(|p| p.file_name().map(|n| n == crate::wow::SAVED).unwrap_or(false))
+            if written(&e.kind)
+                && e.paths
+                    .iter()
+                    .any(|p| p.file_name().map(|n| n == crate::wow::SAVED).unwrap_or(false))
             {
                 let _ = tx.send(());
             }
@@ -168,4 +183,23 @@ async fn send(app: &crate::App) -> Option<Last> {
         }
     }
     any.then(|| Last { at: now(), ok, lines })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use notify::event::{CreateKind, DataChange, MetadataKind, RenameMode};
+
+    #[test]
+    fn only_writes_count_not_reads() {
+        // the game writing its saved data
+        assert!(written(&EventKind::Create(CreateKind::File)));
+        assert!(written(&EventKind::Modify(ModifyKind::Data(DataChange::Any))));
+        assert!(written(&EventKind::Modify(ModifyKind::Name(RenameMode::To))));
+        assert!(written(&EventKind::Access(AccessKind::Close(AccessMode::Write))));
+        // the app (or anything else) only reading it
+        assert!(!written(&EventKind::Access(AccessKind::Open(AccessMode::Any))));
+        assert!(!written(&EventKind::Access(AccessKind::Close(AccessMode::Read))));
+        assert!(!written(&EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any))));
+    }
 }
