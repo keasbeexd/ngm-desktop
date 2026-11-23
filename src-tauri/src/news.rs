@@ -4,20 +4,44 @@
 //! (a cheap "anything new?"), after each send, and when the app starts.
 //! A small desktop notification says when there's a new event.
 
+use crate::busy::Busy;
 use crate::{companion, peon, store};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 const EVERY: Duration = Duration::from_secs(10 * 60);
+
+/// A check older than this counts as hung (each request gives up after 20 s).
+const STALE: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Default)]
 pub struct News {
     /// per guild ("us/Nootropic"): NGM Peon's code and its ETag
     held: Mutex<HashMap<String, (String, String)>>,
-    running: Mutex<bool>,
+    busy: Busy,
+    pub last: Mutex<Option<Checked>>,
+}
+
+/// The last check, for the window.
+#[derive(Debug, Clone, Serialize)]
+pub struct Checked {
+    /// Unix seconds
+    pub at: u64,
+    /// upcoming events in the codes kept for the game
+    pub events: usize,
+    /// what went wrong, if it did
+    pub error: Option<String>,
+}
+
+fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 /// Is WoW running? (Only process names are looked at.)
@@ -55,22 +79,54 @@ pub fn start(handle: &AppHandle) {
 /// and puts them in the app's addon. Tells about new events.
 pub async fn fetch(handle: &AppHandle) {
     let app = handle.state::<crate::App>();
-    {
-        let mut r = app.news.running.lock().unwrap();
-        if *r {
-            return;
-        }
-        *r = true;
+    let Some(_held) = app.news.busy.take(STALE) else {
+        return; // already checking
+    };
+    let checked = match fetch_in(handle, &app).await {
+        Outcome::Skip => None,
+        Outcome::Done(events) => Some(Checked {
+            at: now(),
+            events,
+            error: None,
+        }),
+        Outcome::Failed(e) => Some(Checked {
+            at: now(),
+            events: 0,
+            error: Some(e),
+        }),
+    };
+    if let Some(c) = checked {
+        *app.news.last.lock().unwrap() = Some(c);
+        let _ = handle.emit("synced", ());
     }
-    let _ = fetch_in(handle, &app).await;
-    *app.news.running.lock().unwrap() = false;
 }
 
-async fn fetch_in(handle: &AppHandle, app: &crate::App) -> Option<()> {
-    let key = store::key()?;
-    let forever = app.settings.lock().unwrap().wow.clone()?;
-    let guilds = crate::my_guilds(app, &key, false).await.ok()?;
+/// How a check went.
+enum Outcome {
+    /// not set up yet (no game folder, or not connected): nothing to say
+    Skip,
+    /// the upcoming events now kept for the game
+    Done(usize),
+    Failed(String),
+}
+
+async fn fetch_in(handle: &AppHandle, app: &crate::App) -> Outcome {
+    let Some(forever) = app.settings.lock().unwrap().wow.clone() else {
+        return Outcome::Skip;
+    };
+    let Some(key) = store::key() else {
+        return if store::key_waiting() {
+            Outcome::Failed(store::KEY_STUCK.into())
+        } else {
+            Outcome::Skip
+        };
+    };
+    let guilds = match crate::my_guilds(app, &key, false).await {
+        Ok(g) => g,
+        Err(e) => return Outcome::Failed(e.to_string()),
+    };
     let mut changed = false;
+    let mut problem = None;
     for g in guilds.iter().filter(|g| g.role.is_some()) {
         let id = format!("{}/{}", g.region, g.name);
         let etag = app.news.held.lock().unwrap().get(&id).map(|(_, e)| e.clone());
@@ -80,23 +136,26 @@ async fn fetch_in(handle: &AppHandle, app: &crate::App) -> Option<()> {
                 app.news.held.lock().unwrap().insert(id, (code, etag));
                 changed = true;
             }
-            _ => {}
+            Ok(Some(_)) => problem = Some(format!("<{}>: NGM Peon's code didn't look right.", g.name)),
+            Ok(None) => {} // unchanged
+            Err(e) => problem = Some(format!("<{}>: {e}", g.name)),
         }
     }
+    let codes: Vec<String> = {
+        let held = app.news.held.lock().unwrap();
+        let mut ids: Vec<&String> = held.keys().collect();
+        ids.sort();
+        ids.into_iter().map(|k| held[k].0.clone()).collect()
+    };
     if changed {
-        let mut codes: Vec<(String, String)> = app
-            .news
-            .held
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(k, (c, _))| (k.clone(), c.clone()))
-            .collect();
-        codes.sort();
-        let codes: Vec<String> = codes.into_iter().map(|(_, c)| c).collect();
-        let _ = companion::set_codes(&forever, &codes);
+        if let Err(e) = companion::set_codes(&forever, &codes) {
+            return Outcome::Failed(e);
+        }
     }
-    Some(())
+    match problem {
+        Some(p) => Outcome::Failed(p),
+        None => Outcome::Done(codes.iter().map(|c| events_in(c).len()).sum()),
+    }
 }
 
 /// A desktop notification for each event NGM Peon has that this computer

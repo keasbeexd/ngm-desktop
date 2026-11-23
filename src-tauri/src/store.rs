@@ -5,6 +5,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{mpsc, Mutex};
+use std::time::Duration;
 
 const SERVICE: &str = "app.ngmpeon.desktop";
 const ACCOUNT: &str = "device-key";
@@ -65,17 +67,61 @@ fn entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| format!("Couldn't open the system's secure store: {e}"))
 }
 
+/// How long to wait for the secure store. A locked one (Linux: the login
+/// keyring) can wait on an unlock prompt for as long as it likes.
+const KEY_WAIT: Duration = Duration::from_secs(10);
+
+/// The key once read: the store is asked once per run, not at every redraw.
+static KEY: Mutex<Option<String>> = Mutex::new(None);
+/// A read that didn't answer in time: the next call waits on it again
+/// instead of asking the store once more.
+static WAITING: Mutex<Option<mpsc::Receiver<Option<String>>>> = Mutex::new(None);
+
+pub const KEY_STUCK: &str = "The system's secure store didn't answer, so NGM Desktop can't reach NGM Peon. If it's locked (on Linux, the login keyring), unlock it, then press Send now.";
+
+/// This computer's key. None when there's none, or when the secure store
+/// didn't answer in time (then `key_waiting` is true).
 pub fn key() -> Option<String> {
-    entry().ok()?.get_password().ok()
+    if let Some(k) = KEY.lock().unwrap().clone() {
+        return Some(k);
+    }
+    let mut waiting = WAITING.lock().unwrap();
+    let rx = waiting.take().unwrap_or_else(|| {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(entry().ok().and_then(|e| e.get_password().ok()));
+        });
+        rx
+    });
+    match rx.recv_timeout(KEY_WAIT) {
+        Ok(k) => {
+            KEY.lock().unwrap().clone_from(&k);
+            k
+        }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            *waiting = Some(rx);
+            None
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => None,
+    }
+}
+
+/// The secure store hasn't answered yet (it may be locked).
+pub fn key_waiting() -> bool {
+    WAITING.lock().unwrap().is_some()
 }
 
 pub fn set_key(key: &str) -> Result<(), String> {
     entry()?
         .set_password(key)
-        .map_err(|e| format!("Couldn't save to the system's secure store: {e}"))
+        .map_err(|e| format!("Couldn't save to the system's secure store: {e}"))?;
+    *WAITING.lock().unwrap() = None;
+    *KEY.lock().unwrap() = Some(key.to_string());
+    Ok(())
 }
 
 pub fn forget_key() {
+    *KEY.lock().unwrap() = None;
     if let Ok(e) = entry() {
         let _ = e.delete_credential();
     }

@@ -4,6 +4,7 @@
 //! Idle otherwise: a file watcher, no timers. Waits until the game has
 //! finished writing (a few quiet seconds), then sends each code once.
 
+use crate::busy::Busy;
 use crate::{companion, peon, saved, store};
 use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
@@ -33,8 +34,11 @@ pub struct Sync {
     pub last: Mutex<Option<Last>>,
     /// the app's addon was just added: the game must restart to load it
     pub helper_new: Mutex<bool>,
-    running: Mutex<bool>,
+    busy: Busy,
 }
+
+/// A send older than this counts as hung (each request gives up after 20 s).
+const STALE: Duration = Duration::from_secs(5 * 60);
 
 fn now() -> u64 {
     SystemTime::now()
@@ -109,23 +113,22 @@ pub fn start(handle: &AppHandle, forever: &Path) -> Result<(), String> {
 }
 
 /// Sends every code not sent yet. Nothing without a key or a game folder.
-/// True when something was sent (or tried).
+/// True when something was sent (or tried, or a send is already under way).
+/// NGM Peon's news is checked either way.
 pub async fn run(handle: &AppHandle) -> bool {
     let app = handle.state::<crate::App>();
-    {
-        let mut running = app.sync.running.lock().unwrap();
-        if *running {
-            return true; // already sending
+    let sent = match app.sync.busy.take(STALE) {
+        None => true, // already sending
+        Some(_held) => {
+            let result = send(&app).await;
+            let sent = result.is_some();
+            if let Some(last) = result {
+                *app.sync.last.lock().unwrap() = Some(last);
+                let _ = handle.emit("synced", ());
+            }
+            sent
         }
-        *running = true;
-    }
-    let result = send(&app).await;
-    *app.sync.running.lock().unwrap() = false;
-    let sent = result.is_some();
-    if let Some(last) = result {
-        *app.sync.last.lock().unwrap() = Some(last);
-        let _ = handle.emit("synced", ());
-    }
+    };
     // NGM Peon's news, fresh for the next login (also when nothing was sent)
     crate::news::fetch(handle).await;
     sent

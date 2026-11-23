@@ -6,6 +6,7 @@
 //! up to date.
 
 mod addon;
+mod busy;
 mod companion;
 #[cfg(target_os = "linux")]
 mod launcher;
@@ -87,6 +88,8 @@ struct View {
     error: Option<String>,
     /// the last time the app sent NGM Peon an update
     last: Option<sync::Last>,
+    /// the last check for NGM Peon's news
+    news: Option<news::Checked>,
     /// the app's addon was just added: restart WoW once
     helper_new: bool,
     /// a passing remark (not an error)
@@ -123,6 +126,7 @@ async fn view(app: &App, error: Option<String>) -> View {
         guilds: vec![],
         error,
         last: app.sync.last.lock().unwrap().clone(),
+        news: app.news.last.lock().unwrap().clone(),
         helper_new: *app.sync.helper_new.lock().unwrap(),
         note: None,
         app: AppView {
@@ -161,6 +165,10 @@ async fn view(app: &App, error: Option<String>) -> View {
                 v.error = v.error.or(Some(e.to_string()));
             }
         }
+    } else if store::key_waiting() {
+        // a key may well be there: don't offer to connect again
+        v.connected = true;
+        v.error = v.error.or(Some(store::KEY_STUCK.into()));
     }
     v
 }
@@ -257,17 +265,18 @@ async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String
     Ok(v)
 }
 
-/// The tray's Send now: the window's button, plus NGM Peon's news, with a
-/// desktop notification saying how it went (the window may be closed).
+/// The tray's Send now: the window's button (which also checks NGM Peon's
+/// news), with a desktop notification saying how it went (the window may be
+/// closed).
 fn tray_send(handle: AppHandle) {
     tauri::async_runtime::spawn(async move {
         use tauri_plugin_notification::NotificationExt;
         let sent = sync::run(&handle).await;
-        news::fetch(&handle).await;
-        let body = if sent {
-            "Sent to NGM Peon. Its news is ready for your next login or /reload."
-        } else {
-            "Nothing new to send. WoW saves the NGM Addon's update when you log out or /reload, so do one of those in game."
+        let news = handle.state::<App>().news.last.lock().unwrap().clone();
+        let body = match news.and_then(|n| n.error) {
+            Some(e) => format!("Couldn't get NGM Peon's news: {e}"),
+            None if sent => "Sent to NGM Peon. Its news is ready for your next login or /reload.".into(),
+            None => "Nothing new to send. NGM Peon's news is ready for your next login or /reload.".into(),
         };
         let _ = handle.notification().builder().title("NGM Desktop").body(body).show();
     });
