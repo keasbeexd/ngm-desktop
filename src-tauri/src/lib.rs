@@ -257,12 +257,19 @@ async fn sync_now(handle: AppHandle, app: State<'_, App>) -> Result<View, String
     let sent = sync::run(&handle).await;
     let mut v = view(&app, None).await;
     if !sent {
-        v.note = Some(
-            "Nothing new to send. WoW saves the NGM Addon's update when you log out or /reload, so do one of those in game."
-                .into(),
-        );
+        v.note = Some(nothing_new(v.last.as_ref()).into());
     }
     Ok(v)
+}
+
+/// Send now with nothing waiting. The update usually went by itself already,
+/// when WoW saved it (logout or /reload), so say that rather than sound like
+/// nothing reached NGM Peon.
+fn nothing_new(last: Option<&sync::Last>) -> &'static str {
+    match last {
+        Some(l) if l.ok => "Already sent: nothing new since the last send. WoW saves the NGM Addon's update when you log out or /reload.",
+        _ => "Nothing new to send. WoW saves the NGM Addon's update when you log out or /reload, so do one of those in game.",
+    }
 }
 
 /// The tray's Send now: the window's button (which also checks NGM Peon's
@@ -276,7 +283,17 @@ fn tray_send(handle: AppHandle) {
         let body = match news.and_then(|n| n.error) {
             Some(e) => format!("Couldn't get NGM Peon's news: {e}"),
             None if sent => "Sent to NGM Peon. Its news is ready for your next login or /reload.".into(),
-            None => "Nothing new to send. NGM Peon's news is ready for your next login or /reload.".into(),
+            None => {
+                let last = handle.state::<App>().sync.last.lock().unwrap().clone();
+                format!(
+                    "{} NGM Peon's news is ready for your next login or /reload.",
+                    if last.is_some_and(|l| l.ok) {
+                        "Already sent: nothing new since the last send."
+                    } else {
+                        "Nothing new to send."
+                    }
+                )
+            }
         };
         let _ = handle.notification().builder().title("NGM Desktop").body(body).show();
     });

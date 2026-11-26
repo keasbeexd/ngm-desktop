@@ -55,10 +55,14 @@ fn fingerprint(code: &str) -> u64 {
 }
 
 fn describe(s: &peon::Sent) -> String {
-    let what = match s.stored {
-        0 => "nothing new".to_string(),
-        1 => "1 change taken".to_string(),
-        n => format!("{n} changes taken"),
+    let what = match (s.stored, s.calendar) {
+        (0, false) => "nothing new".to_string(),
+        (0, true) => "resets and holidays updated".to_string(),
+        (1, c) => format!("1 change taken{}", if c { ", resets and holidays updated" } else { "" }),
+        (n, c) => format!(
+            "{n} changes taken{}",
+            if c { ", resets and holidays updated" } else { "" }
+        ),
     };
     let mut line = format!("<{}>: {what}", s.guild);
     if s.ranks {
@@ -189,6 +193,34 @@ async fn send(app: &crate::App) -> Option<Last> {
 mod tests {
     use super::*;
     use notify::event::{CreateKind, DataChange, MetadataKind, RenameMode};
+
+    fn sent(stored: u32, calendar: bool) -> peon::Sent {
+        peon::Sent {
+            guild: "Nootropic".into(),
+            role: "gm".into(),
+            stored,
+            unchanged: 0,
+            refused: 0,
+            ranks: false,
+            calendar,
+        }
+    }
+
+    #[test]
+    fn says_what_was_taken_resets_and_holidays_too() {
+        assert_eq!(describe(&sent(0, false)), "<Nootropic>: nothing new");
+        assert_eq!(describe(&sent(0, true)), "<Nootropic>: resets and holidays updated");
+        assert_eq!(
+            describe(&sent(1, true)),
+            "<Nootropic>: 1 change taken, resets and holidays updated"
+        );
+        assert_eq!(describe(&sent(3, false)), "<Nootropic>: 3 changes taken");
+        // an older NGM Peon doesn't send the field
+        let old: peon::Sent =
+            serde_json::from_str(r#"{"guild":"G","role":"gm","stored":0,"unchanged":0,"refused":0,"ranks":false}"#)
+                .unwrap();
+        assert!(!old.calendar);
+    }
 
     #[test]
     fn only_writes_count_not_reads() {
