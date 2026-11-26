@@ -3,6 +3,11 @@
 Every release is on the [releases page](https://github.com/keasbeexd/ngm-desktop/releases), for Windows, macOS and Linux. The app updates itself (Keep NGM Desktop up to date), so there's nothing to download again.
 
 
+## 0.2.7 · 25 November 2026
+
+- **Resets and holidays.** NGM Addon 3.1 sends the game's resets and holidays with its update, and NGM Desktop now says when NGM Peon took them: "resets and holidays updated".
+- **Send now says when it's already sent.** WoW saves the NGM Addon's update when you log out or /reload, and NGM Desktop sends it right then, so pressing Send now afterwards found nothing left and said "Nothing new to send", as if nothing had reached NGM Peon. It now says "Already sent: nothing new since the last send." The tray's Send now says the same.
+
 ## 0.2.6 · 23 November 2026
 
 - **Send now in the tray menu.** Right-click NGM Desktop's tray icon and pick Send now: it sends what changed in game and brings NGM Peon's news, then a notification says how it went, without opening the window.

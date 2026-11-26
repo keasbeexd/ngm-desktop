@@ -133,6 +133,10 @@ pub struct Sent {
     pub unchanged: u32,
     pub refused: u32,
     pub ranks: bool,
+    /// NGM Peon took the game's resets and holidays (they changed); older
+    /// NGM Peon versions don't say
+    #[serde(default)]
+    pub calendar: bool,
 }
 
 /// Step 2: an update code from NGM Addon's saved data.
