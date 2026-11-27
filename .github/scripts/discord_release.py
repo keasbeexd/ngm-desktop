@@ -37,6 +37,20 @@ def changelog_section(text: str, version: str) -> str:
     return notes
 
 
+def headlines(notes: str) -> str:
+    """Just each entry's bold header ("- **Works with a controller.**"), or
+    its first sentence when it has none: the full notes are on the What's
+    new page, linked under it."""
+    out = []
+    for line in notes.splitlines():
+        m = re.match(r"^(\s*[-*] )\*\*(.+?)\*\*", line)
+        if m:
+            out.append(f"{m.group(1)}**{m.group(2)}**")
+        elif re.match(r"^\s*[-*] ", line):
+            out.append(re.split(r"(?<=[.!?])\s", line, maxsplit=1)[0])
+    return "\n".join(out)
+
+
 def is_feature_release(version: str) -> bool:
     parts = version.split(".")
     return len(parts) == 3 and parts[2] == "0"
@@ -81,7 +95,7 @@ def main() -> int:
         return 0
     version = tag[1:]
     with open("CHANGELOG.md", encoding="utf-8") as f:
-        notes = changelog_section(f.read(), version)
+        notes = headlines(changelog_section(f.read(), version))
     # one role ID, or several separated by commas: each is pinged
     roles = [r.strip() for r in os.environ.get("DISCORD_ANNOUNCE_ROLE_ID", "").split(",") if r.strip()]
     if any(not re.fullmatch(r"\d{17,20}", r) for r in roles):
