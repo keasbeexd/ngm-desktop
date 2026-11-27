@@ -186,6 +186,10 @@ fn announce(handle: &AppHandle, app: &crate::App, guild: &str, code: &str) {
 }
 
 /// The events in an NGMP1 code: (id, kind, title) from its `E` lines.
+/// Events made in game are left out: their maker knows, and the guild sees
+/// them in game already. (NGM Addon 3.1's codes link each post to the event
+/// made in game it came from: `R` lines `EL:<id>` whose value starts with
+/// that event's id, empty for one made on the dashboard.)
 pub fn events_in(code: &str) -> Vec<(String, String, String)> {
     let Some(body) = code.split('.').nth(1) else {
         return vec![];
@@ -194,10 +198,18 @@ pub fn events_in(code: &str) -> Vec<(String, String, String)> {
         return vec![];
     };
     let text = String::from_utf8_lossy(&bytes);
+    let from_game: std::collections::HashSet<&str> = text
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split('\t').collect();
+            let id = f.get(1)?.strip_prefix("EL:")?;
+            (f.first() == Some(&"R") && f.len() >= 5 && !f[4].starts_with(';')).then_some(id)
+        })
+        .collect();
     text.lines()
         .filter_map(|l| {
             let f: Vec<&str> = l.split('\t').collect();
-            (f.first() == Some(&"E") && f.len() >= 6).then(|| {
+            (f.first() == Some(&"E") && f.len() >= 6 && !from_game.contains(f[1])).then(|| {
                 let title: String = f[5].chars().filter(|c| !c.is_control()).take(80).collect();
                 (f[1].to_string(), f[2].to_string(), title)
             })
@@ -243,6 +255,24 @@ mod tests {
             vec![("16".to_string(), "raid".to_string(), "Molten Core".to_string())]
         );
         assert!(events_in("NGMP1.@@@.00000000").is_empty());
+        // one made in game (its post's EL record names the game's event): not announced
+        let text = "us\nNootropic\nhas\t1\nE\t16\traid\t1\t1\tMolten Core\t\t\t\t0\nE\t17\tdungeon\t1\t1\tStrat\t\t\t\t0\nR\tEL:16\t1\tNGM Peon\tab12;,,;;\nR\tEL:17\t1\tNGM Peon\t;1,1,3;;";
+        let enc = |b: &[u8]| -> String {
+            const A: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+            let mut o = String::new();
+            for c in b.chunks(3) {
+                let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+                for i in 0..(c.len() + 1) {
+                    o.push(A[(n >> (18 - 6 * i) & 63) as usize] as char);
+                }
+            }
+            o
+        };
+        let code = format!("NGMP1.{}.00000000", enc(text.as_bytes()));
+        assert_eq!(
+            events_in(&code),
+            vec![("17".to_string(), "dungeon".to_string(), "Strat".to_string())]
+        );
         assert!(events_in("nonsense").is_empty());
     }
 }
