@@ -3,6 +3,11 @@
 Every release is on the [releases page](https://github.com/keasbeexd/ngm-desktop/releases), for Windows, macOS and Linux. The app updates itself (Keep NGM Desktop up to date), so there's nothing to download again.
 
 
+## Unreleased
+
+- **No "new event" notice for events made in game.** With NGM Addon 3.1, an event created in game came back from NGM Peon as a "New raid" notice asking you to /reload, though you'd just made it. Events made in game aren't announced now: whoever made it knows, and the guild sees it in game already.
+- **Security updates** for two libraries the app uses (`cookie` and `url`).
+
 ## 0.2.7 · 25 November 2026
 
 - **Resets and holidays.** NGM Addon 3.1 sends the game's resets and holidays with its update, and NGM Desktop now says when NGM Peon took them: "resets and holidays updated".
