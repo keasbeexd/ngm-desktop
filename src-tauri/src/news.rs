@@ -269,7 +269,10 @@ mod tests {
             o
         };
         let code = format!("NGMP1.{}.00000000", enc(text.as_bytes()));
-        assert_eq!(events_in(&code), vec![("17".to_string(), "dungeon".to_string(), "Strat".to_string())]);
+        assert_eq!(
+            events_in(&code),
+            vec![("17".to_string(), "dungeon".to_string(), "Strat".to_string())]
+        );
         assert!(events_in("nonsense").is_empty());
     }
 }
