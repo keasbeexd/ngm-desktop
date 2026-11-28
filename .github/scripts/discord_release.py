@@ -58,7 +58,7 @@ def is_feature_release(version: str) -> bool:
 
 # the same footer on every NGM changelog post (the NGM Addon's and NGM Peon's too)
 # (the support line on feature releases only, x.y.0)
-FOOTER = "Free for every guild · by keasbeexd and aigoodandy"
+FOOTER = "Free for every guild · by keasbeexd"
 SUPPORT = "Enjoying NGM? [Ko-fi](https://ko-fi.com/keasbeexd) · [GitHub Sponsors](https://github.com/sponsors/keasbeexd)"
 
 
