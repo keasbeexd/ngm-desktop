@@ -56,6 +56,10 @@ def is_feature_release(version: str) -> bool:
     return len(parts) == 3 and parts[2] == "0"
 
 
+# the same footer on every NGM changelog post (the NGM Addon's and NGM Peon's too)
+SUPPORT = "Enjoying NGM? [Ko-fi](https://ko-fi.com/keasbeexd) · [GitHub Sponsors](https://github.com/sponsors/keasbeexd)"
+
+
 def payload(version: str, notes: str, tag: str, ping_roles: list[str] | None = None) -> dict:
     release = f"https://github.com/{REPO}/releases/tag/{tag}"
     body = {
@@ -67,9 +71,9 @@ def payload(version: str, notes: str, tag: str, ping_roles: list[str] | None = N
             "description": notes or "See the release notes on GitHub.",
             "color": 0xC79C3E,
             "fields": [{
-                "name": "Get it",
+                "name": "Links",
                 "value": f"[Download](https://github.com/{REPO}/releases/latest) for Windows, macOS and Linux · [What's new](https://ngmpeon.app/changelog#desktop)\n"
-                         "Already installed? It updates itself (Keep NGM Desktop up to date).",
+                         f"{SUPPORT}",
             }],
         }],
     }
