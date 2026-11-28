@@ -57,6 +57,8 @@ def is_feature_release(version: str) -> bool:
 
 
 # the same footer on every NGM changelog post (the NGM Addon's and NGM Peon's too)
+# (the support line on feature releases only, x.y.0)
+FOOTER = "Free for every guild · by keasbeexd"
 SUPPORT = "Enjoying NGM? [Ko-fi](https://ko-fi.com/keasbeexd) · [GitHub Sponsors](https://github.com/sponsors/keasbeexd)"
 
 
@@ -72,9 +74,10 @@ def payload(version: str, notes: str, tag: str, ping_roles: list[str] | None = N
             "color": 0xC79C3E,
             "fields": [{
                 "name": "Links",
-                "value": f"[Download](https://github.com/{REPO}/releases/latest) for Windows, macOS and Linux · [What's new](https://ngmpeon.app/changelog#desktop)\n"
-                         f"{SUPPORT}",
+                "value": f"[Download](https://github.com/{REPO}/releases/latest) for Windows, macOS and Linux · [What's new](https://ngmpeon.app/changelog#desktop)"
+                         + (f"\n{SUPPORT}" if is_feature_release(version) else ""),
             }],
+            "footer": {"text": FOOTER},
         }],
     }
     if ping_roles:
